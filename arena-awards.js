@@ -1,0 +1,13 @@
+/* Arena collection: existing demo progress is retained, previews never award points. */
+function arenaBadgeData(){
+ return [['fire','Fire','Motivation',5,'The spark that starts it.'],['ice','Ice','Determination',100,'The strength to keep going.'],['earth','Earth','Gratification',250,'Growth worth celebrating.'],['water','Water','Sustainability',500,'Find a rhythm that lasts.'],['lightning','Lightning','Maintenance',1000,'Keep your momentum alive.']].map(([id,name,pillar,target,copy])=>({id,name,pillar,target,copy,earned:s.joined&&s.points>=target}));
+}
+function arenaAchievements(){
+ const badges=arenaBadgeData();
+ const status=earned=>s.joined&&earned?'Earned':'Locked';
+ return pageHero('ARENA COLLECTION','YOUR EFFORT. YOUR ELEMENTS.','Badges and trophies — every milestone has a home in RAVN Arena.')+
+ section('YOUR COLLECTION',`${memberNotice()}<div class="subnav">${btn('/arena','RAVN Arena',true)}${btn('/profile','My profile',true)}</div><div class="stats arena-collection-stats">${[['Points',s.points],['Elemental badges',arenaTrophyData().badges],['Trophies',arenaTrophyData().total]].map(([label,value])=>card(`<div class="stat"><strong>${value}</strong><span>${label}</span></div>`)).join('')}</div>`)+
+ section('THE FIVE ELEMENTAL BADGES',`<p>Your elemental badges, earned through progress.</p><p class="mini">These five starter badges use your existing demo milestones. Each counts once. Further badges need their own earned records; extra points alone do not create repeat badges.</p><div class="element-badge-grid">${badges.map(b=>`<article class="element-award ${b.id}"><div class="element-preview">${arenaElementArt(b.id)}</div><div class="eyebrow">${b.pillar}</div><h3>${b.name}</h3><p>${b.copy}</p><span class="award-status ${b.earned?'earned':''}">${b.earned?'Earned':'Locked'}</span><div class="award-progress" role="progressbar" aria-label="${b.name} badge points" aria-valuemin="0" aria-valuemax="${b.target}" aria-valuenow="${Math.min(b.target,s.joined?s.points:0)}"><span style="width:${Math.min(100,(s.joined?s.points:0)/b.target*100)}%"></span></div><small>${Math.min(b.target,s.joined?s.points:0)} / ${b.target.toLocaleString()} points</small></article>`).join('')}</div>`)+
+ arenaTrophyCollection()+
+ section('YOUR ACHIEVEMENT HISTORY',s.logs.length?card(`<div class="list">${s.logs.map(l=>`<div class="list-row"><span>${esc(l.label)}<div class="mini">${new Date(l.date).toLocaleDateString('en-GB')}</div></span><strong>+${l.points}</strong></div>`).join('')}</div>`):card('<p>Your milestones will appear here as you record your progress.</p>'+btn('/accountability','Record your first step',true)));
+}
