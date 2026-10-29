@@ -345,3 +345,11 @@ h1,h2,h3,h4,.brand,.nr-kicker,.btn,.btn-outline,.btn-soft,.nav a{
 .f-stretching-card-image{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;margin:14px 0 20px;border-radius:6px}
 
 .site-disclaimer-note{margin-top:18px;margin-bottom:18px;padding:14px 20px;border-left:3px solid #92bba5;background:#102128}.site-disclaimer-note p{font-size:13px;line-height:1.65;margin:0}.site-disclaimer-note a,.disclaimer-document a{color:#b9e2cc;text-decoration:underline;text-underline-offset:3px}.disclaimer-document{max-width:900px;margin:auto}.disclaimer-document p{line-height:1.8;font-size:16px}.disclaimer-document section{padding-top:28px;margin-top:28px;border-top:1px solid #365052;scroll-margin-top:24px}.disclaimer-document h3{font-size:22px;line-height:1.4}.disclaimer-contents{display:grid;gap:10px;margin-top:26px;padding:20px;background:#08191f;border:1px solid #365052;border-radius:6px}.disclaimer-contents a{font-size:14px;line-height:1.6}.disclaimer-document section:focus{outline:2px solid #93bca6;outline-offset:8px}@media(max-width:600px){.disclaimer-document{padding:20px}.disclaimer-document p{font-size:15px}.disclaimer-document h3{font-size:19px}}
+
+/* One approved angular logo on every page; never crop the brand artwork. */
+.brand .brand-logo,.footer .brand .brand-logo,.nr-kicker .nr-wordmark,.nr-bannerbrand .nr-wordmark,.nr-logo-inline .nr-wordmark{height:auto;min-height:0;aspect-ratio:3/1;object-fit:contain;object-position:center;max-width:100%;filter:none!important}
+.topinner>.brand{flex-shrink:0}
+.footer .brand-logo{width:230px;height:auto;max-width:100%}
+.hero-crop.hero-short{width:100%;min-height:0;height:auto;max-height:none}
+.hero-crop.hero-short>img{position:static;display:block;width:100%;height:auto;min-height:0;max-height:none;object-fit:contain;filter:none}
+@media(max-width:560px){.topinner{gap:10px;padding-inline:14px}.brand .brand-logo{width:140px}.home-hero-actions{padding-top:16px}}
