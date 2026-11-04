@@ -1,7 +1,7 @@
 (() => {
 const play='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 11 7-11 7Z"/></svg>';
 const circle=(type,label,icon)=>`<button type="button" class="arena-upload" data-arena-upload="new" data-kind="${type}" aria-label="Upload ${label.toLowerCase()}"><span class="arena-circle">${icon}</span><strong>${label}</strong><small>Tap to upload</small></button>`;
-function memberAchievements() {
+function memberAchievements(includeInput=true) {
  const profile = window.ravnArenaProfile?.() || {
   name: s.name,
   bio: '',
@@ -10,14 +10,15 @@ function memberAchievements() {
  return `<section class="arena-member-card" aria-labelledby="arena-member-title">
   <div class="arena-member-heading"><h2 id="arena-member-title">YOUR PROFILE</h2><a href="#/profile">Edit profile</a></div>
   <div class="arena-member-identity">${profile.picture}<div><h3>${esc(profile.name)}</h3><p>${esc(profile.bio || 'Every step counts. Keep building your consistency.')}</p></div></div>
-  <input id="vs-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Choose profile picture">
+  ${includeInput?'<input id="vs-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Choose profile picture">':''}
   <h3 class="arena-achievements-title">YOUR ACHIEVEMENTS</h3>
   ${profileAwardBanner(profileAwardCounts())}
-  <a class="btn-outline" href="#/arena/achievements">View achievements</a>
+  <a class="btn-outline" href="#/repbook/achievements">View achievements</a>
  </section>`;
 }
-arena=function(){return `<section class="arena-shell wrap"><header class="arena-heading"><p class="eyebrow">RAVN SOUTH</p><h1>ARENA</h1><p>Your effort. Your reel. Your challenge.</p></header><div class="arena-upload-row">${circle('reel','Reel Challenge',play)}${circle('tag','Tag Challenge','@')}</div><div class="arena-links"><a href="#/arena/leaderboard">Leaderboard</a><a href="#/arena/achievements">Badges & trophies</a></div>${memberAchievements()}<a class="btn-outline arena-browse" href="#/vault/reels">View your reels</a><p class="mini arena-note">Uploads and tags currently save on this browser only. Shared member competitions are coming separately.</p></section>`;};
-
+window.repbookMemberSummary=()=>memberAchievements(false);
+window.repbookChallengeControls=()=>`<section class="repbook-challenges" aria-label="Repbook challenges"><div class="arena-upload-row">${circle('reel','Reel Challenge',play)}${circle('tag','Tag Challenge','@')}</div><div class="arena-links"><a href="#/repbook/leaderboard">Leaderboard</a><a href="#/repbook/achievements">Badges & trophies</a><a href="#/repbook/reels">Your reels</a></div></section>`;
+arena=()=>window.ravnRepbookWrap(`${window.repbookChallengeControls()}${memberAchievements(false)}<p class="mini arena-note">Uploads and tags currently save on this browser only. Shared member competitions are coming separately.</p>`);
 document.addEventListener('click',e=>{const button=e.target.closest('[data-arena-upload]');if(button)window.ravnArenaUpload(button.dataset.kind);});
-const previousRender=render;render=function(){previousRender();document.body.classList.toggle('arena-active',path().startsWith('/arena'));};render();
+const previousRender=render;render=function(){const old=path();let next=old.replace(/^\/vault(?=\/|$)/,'/repbook').replace(/^\/arena$/,'/repbook/challenges').replace(/^\/arena\//,'/repbook/');if(next!==old)history.replaceState(history.state,'','#'+next);previousRender();document.body.classList.toggle('arena-active',path().startsWith('/repbook')||path()==='/profile');};render();
 })();

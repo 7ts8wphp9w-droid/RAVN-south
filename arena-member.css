@@ -60,3 +60,17 @@ body.arena-active{--bg:#070709;--card:#111014;--card2:#19131e;--edge:#49364f;--c
 @media(max-width:380px){.arena-member-card .profile-award-banner ul{padding:12px 4px;gap:4px}.arena-member-card .profile-award-name{font-size:10px}.arena-member-card .profile-award-icon>img{width:34px;height:38px}.arena-member-card .profile-award-banner strong{font-size:18px}}
 
 .arena-active .notice{background:#211827;border-color:#9b79aa;color:#d9c9e2}
+
+/* Repbook brings community, challenges and achievements into one hub. */
+.repbook-summary{margin:0 0 32px}.repbook-summary .arena-member-card{max-width:none}
+.repbook-challenges .arena-upload-row{margin:20px 0}.repbook-challenges .arena-links{margin:20px 0 28px;flex-wrap:wrap}
+.repbook-feed-title{margin:28px 0 20px;color:#ddc4e8;font:700 22px Arial,sans-serif}
+.arena-active .vs-heading h1{color:#c4a2d1}.arena-active .vs-nav{border-color:#49364f}
+.arena-active .vs-nav a[aria-current=page],.arena-active .vs-filters button[aria-pressed=true]{background:#2a1d30;color:#e4d3eb;border-color:#70577a}
+.arena-active .vs-kicker,.arena-active .vs-demo,.arena-active .vs-post-meta,.arena-active .vs-counts,.arena-active .vs-person small{color:#bdb0c5}
+.arena-active .vs-story-ring,.arena-active .vs-reel-ring,.arena-active .vs-media-edit,.arena-active .vs-tags a{background:#211827;border-color:#70577a;color:#dfc9e9}
+.arena-active .vs-filters button,.arena-active .vs-actions button{color:#cfbdd9;border-color:#49364f}
+.arena-active .vs-shell .card{border-radius:2px}.arena-active .vs-shell p{color:#bdb0c5}
+
+.arena-active .vs-heading h1{font-family:'Arial Black',Arial,sans-serif;font-weight:900;letter-spacing:.08em;font-size:clamp(32px,7vw,64px)}
+.repbook-home-card{background:#17121c;border-color:#70577a}.repbook-home-card h3{color:#ddc4e8}
