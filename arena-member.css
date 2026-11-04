@@ -35,3 +35,28 @@ body.entry-active,body.arena-active{background:#070709;color:#f4f0f6}
 .arena-browse{display:flex;margin:24px auto}
 .entry-panel h1,.arena-shell h2,.arena-shell h3{font-family:Arial,sans-serif;font-weight:800}
 @media(max-width:480px){.arena-member-card{padding:20px 14px}.arena-member-identity{gap:14px}.arena-member-identity h3{font-size:20px}.arena-member-identity p{font-size:13px}.arena-member-card .profile-award-banner{padding:12px 6px}.arena-member-card .profile-award-banner ul{gap:3px}.arena-member-card .profile-award-name{font-size:9px}}
+
+/* Arena palette applies to inherited site chrome and Vault controls too. */
+body.arena-active{--bg:#070709;--card:#111014;--card2:#19131e;--edge:#49364f;--cream:#f3eef6;--muted:#b7aabd;--gold:#c3a0d0;--green:#c3a0d0;--accent:#c3a0d0;--white:#f4f0f6}
+.arena-active .topbar,.arena-active .footer{background:#09090c;border-color:#49364f}
+.arena-active .footer p,.arena-active .footer a{color:#bdb0c5}
+.arena-active .footer h4{color:#e4d3eb}
+.arena-active .btn-soft{background:#19131e;border-color:#49364f;color:#ddc9e4}
+.arena-active .vs-avatar{background:#211827;border-color:#70577a;color:#e3d1eb}
+.arena-active .vs-photo-edit{background:#c3a0d0;border-color:#111014;color:#211827}
+.arena-active .vs-photo-button:hover .vs-avatar{border-color:#d7b6e4}
+.arena-active .vs-dialog{background:#111014;border-color:#70577a;color:#f4f0f6}
+.arena-active .vs-dialog input,.arena-active .vs-dialog select,.arena-active .vs-dialog textarea{background:#19131e;border-color:#594362;color:#f4f0f6}
+.arena-active .vs-dialog .mini,.arena-active .vs-dialog small{color:#bdb0c5}
+.arena-active .vs-dialog::backdrop{background:#070709dd}
+/* Each award has its own vertical cell: image, label, then count. */
+.arena-member-card .profile-award-banner{padding:0;background:transparent}
+.arena-member-card .profile-award-banner ul{padding:16px 8px;background:#17121c;border:1px solid #49364f;border-radius:0;gap:6px;align-items:start}
+.arena-member-card .profile-award-banner li{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;border:0;text-align:center}
+.arena-member-card .profile-award-icon{width:100%;height:48px;overflow:visible}
+.arena-member-card .profile-award-icon>img{width:42px;height:44px;max-width:100%;object-fit:contain;filter:none}
+.arena-member-card .profile-award-name{display:block;font-size:11px;line-height:1.4;color:#cfbdd9;white-space:normal;overflow-wrap:anywhere}
+.arena-member-card .profile-award-banner strong{font-size:20px;line-height:1.2;color:#f4f0f6;max-width:100%}
+@media(max-width:380px){.arena-member-card .profile-award-banner ul{padding:12px 4px;gap:4px}.arena-member-card .profile-award-name{font-size:10px}.arena-member-card .profile-award-icon>img{width:34px;height:38px}.arena-member-card .profile-award-banner strong{font-size:18px}}
+
+.arena-active .notice{background:#211827;border-color:#9b79aa;color:#d9c9e2}
