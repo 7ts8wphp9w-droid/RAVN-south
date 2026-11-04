@@ -23,3 +23,10 @@
 @supports not (backdrop-filter:blur(1px)){.rep-glass{background:#241a2c}}
 
 .rep-main{min-width:0}.repbook-social .vs-composer .vs-avatar{flex:0 0 auto}.repbook-social .vs-stories{max-width:100%}.repbook-social .vs-composer>span:not(.vs-avatar){min-width:0}
+
+.repbook-social .vs-stories {
+  scrollbar-width: none;
+}
+.repbook-social .vs-stories::-webkit-scrollbar {
+  display: none;
+}
