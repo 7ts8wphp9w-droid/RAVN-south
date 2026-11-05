@@ -51,6 +51,11 @@
 .rep-author strong {display:block}
 .arena-active .rep-author #vs-kind {width:auto;border:0;padding:2px 0;background:transparent;color:#cab4d4;font-size:13px;opacity:1}
 .arena-active .rep-editor #vs-text {flex:1;min-height:130px;border:0;border-radius:0;resize:vertical;padding:10px 0;background:transparent;font-size:18px;line-height:1.55}
+.rep-editor #vs-text:focus {
+  outline:none;
+  caret-color:#e4c2f3;
+}
+.rep-editor #vs-text:focus::placeholder {color:#c5adcF}
 .rep-editor #vs-error:empty {display:none}
 .rep-editor-tools {margin-top:12px;border-top:1px solid #423348;padding:8px 0}
 .rep-editor-tools summary,.rep-attach {display:flex;gap:12px;align-items:center;position:relative;min-height:48px;cursor:pointer}
