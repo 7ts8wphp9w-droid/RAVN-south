@@ -27,7 +27,7 @@ function previewTile(item,label) {
  const attrs=`class="rep-story-cover" data-media="${esc(item.media)}" aria-hidden="true"`;
  const video=item.type==='reel'||item.mime?.startsWith('video/');
  const cover=!item.media?'':video
-  ? `<video ${attrs} muted playsinline preload="auto" data-story-preview></video>`
+  ? `<img ${attrs} alt="" data-story-preview hidden><small data-preview-status>Loading preview…</small>`
   : `<img ${attrs} alt="">`;
  return `<button type="button" class="vs-story rep-own-story" data-vs="media-menu" data-kind="${item.type}" data-id="${esc(item.id)}" aria-label="Open ${esc(label)}">
   ${cover}<strong>${esc(label)}</strong>${item.media?'':`<small>${esc(item.text)}</small>`}</button>`;
@@ -135,27 +135,84 @@ function saveEntry(kind,text,existing,file,mediaId,tags=existing?.tags||[],arena
 }
 function db(){return new Promise((resolve,reject)=>{let r=indexedDB.open('ravn-vault-media',1);r.onupgradeneeded=()=>r.result.createObjectStore('media');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function mediaStore(method,key,value){const d=await db();return new Promise((resolve,reject)=>{let tx=d.transaction('media',method==='get'?'readonly':'readwrite'),st=tx.objectStore('media'),r=method==='put'?st.put(value,key):st[method](key);let result;r.onsuccess=()=>result=r.result;tx.oncomplete=()=>{d.close();resolve(result)};tx.onerror=()=>{d.close();reject(tx.error)};tx.onabort=()=>{d.close();reject(tx.error)}})}
-// Sample widely spaced frames without starting audio or changing full-video playback.
-let previewTimer;
-function stepPreviews(){
- const videos=document.querySelectorAll('video[data-story-preview]');
- if(!videos.length){clearInterval(previewTimer);previewTimer=null;return}
- if(document.hidden)return;
- for(const video of videos){
-  const bounds=video.getBoundingClientRect();
-  if(bounds.bottom<0||bounds.top>innerHeight||bounds.right<0||bounds.left>innerWidth)continue;
-  if(!Number.isFinite(video.duration)||video.duration<=0||video.seeking)continue;
-  const index=Number(video.dataset.frame||0);
-  if(index && matchMedia('(prefers-reduced-motion: reduce)').matches)continue;
-  video.currentTime=video.duration*[0.12,0.32,0.52,0.72,0.9][index%5];
-  video.dataset.frame=String(index+1);
+// Each tile displays ordinary images, even when the browser pauses inline video.
+const previewFrames=new Map();
+async function captureFrames(src){
+ const video=document.createElement('video');
+ video.muted=true;
+ video.playsInline=true;
+ video.preload='auto';
+ const canvas=document.createElement('canvas');
+ const frames=[];
+ function waitFor(event,start){
+  return new Promise((resolve,reject)=>{
+   const finish=success=>{
+    clearTimeout(timer);
+    video.removeEventListener(event,done);
+    video.removeEventListener('error',fail);
+    success?resolve():reject(Error('Preview unavailable'));
+   };
+   const done=()=>finish(true),fail=()=>finish(false);
+   const timer=setTimeout(fail,4000);
+   video.addEventListener(event,done);
+   video.addEventListener('error',fail);
+   try{start()}catch{fail()}
+  });
+ }
+ try{
+  await waitFor('loadedmetadata',()=>{video.src=src;video.load()});
+  if(!video.videoWidth||!Number.isFinite(video.duration)||video.duration<=0)return frames;
+  const scale=Math.min(1,320/Math.max(video.videoWidth,video.videoHeight));
+  canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
+  canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
+  for(const fraction of [0.12,0.32,0.52,0.72,0.9]){
+   await waitFor('seeked',()=>{video.currentTime=video.duration*fraction});
+   canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+   frames.push(canvas.toDataURL('image/jpeg',0.76));
+  }
+ }catch{}finally{video.removeAttribute('src');video.load()}
+ return frames;
+}
+const tileFrames=new WeakMap();
+setInterval(()=>{
+ if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ for(const tile of document.querySelectorAll('[data-story-preview]')){
+  const state=tileFrames.get(tile);
+  if(!state||state.frames.length<2)continue;
+  state.index=(state.index+1)%state.frames.length;
+  tile.src=state.frames[state.index];
+ }
+},900);
+async function loadTile(el){
+ const key=el.dataset.media;
+ const status=el.parentElement?.querySelector('[data-preview-status]');
+ try{
+  if(!mediaUrls.has(key)){
+   const blob=await mediaStore('get',key);
+   if(!blob)throw Error('Upload unavailable on this device');
+   if(!mediaUrls.has(key))mediaUrls.set(key,URL.createObjectURL(blob));
+  }
+  const src=mediaUrls.get(key);
+  if(!el.hasAttribute('data-story-preview')){
+   if(el.getAttribute('src')!==src)el.src=src;
+   return;
+  }
+  if(tileFrames.has(el))return;
+  if(!previewFrames.has(key))previewFrames.set(key,captureFrames(src));
+  const frames=await previewFrames.get(key);
+  if(!el.isConnected)return;
+  if(!frames.length)throw Error('Tap to open video');
+  el.src=frames[0];
+  el.hidden=false;
+  tileFrames.set(el,{frames,index:0});
+  if(status)status.hidden=true;
+ }catch(error){
+  if(status)status.textContent=error.message==='Upload unavailable on this device'?error.message:'Tap to open video';
+  else if(el.isConnected&&!el.nextElementSibling?.hasAttribute('data-media-error'))
+   el.insertAdjacentHTML('afterend','<p class="mini" data-media-error>This upload is unavailable on this device.</p>');
  }
 }
-async function hydrate(){for(const el of document.querySelectorAll('[data-media]')){try{let key=el.dataset.media;if(!mediaUrls.has(key)){const blob=await mediaStore('get',key);if(blob)mediaUrls.set(key,URL.createObjectURL(blob))}if(mediaUrls.has(key)){
- const src=mediaUrls.get(key)+(el.hasAttribute('data-story-preview')?'#t=0.001':'');
- if(el.getAttribute('src')!==src)el.src=src;
- if(el.hasAttribute('data-story-preview')&&!previewTimer)previewTimer=setInterval(stepPreviews,900);
-}else el.insertAdjacentHTML('afterend','<p class="mini">This upload is no longer available on this device.</p>')}catch{el.insertAdjacentHTML('afterend','<p class="mini">Media storage is unavailable in this browser.</p>')}}}
+function hydrate(){document.querySelectorAll('[data-media]').forEach(loadTile)}
 async function validateFile(file){if(!file)throw Error('Choose a photo or video.');if(!/^(image\/(jpeg|png|webp)|video\/(mp4|webm|quicktime))$/.test(file.type))throw Error('Choose a JPG, PNG, WebP, MP4, MOV or WebM file.');const video=file.type.startsWith('video/');if(file.size>(video?20:10)*1024*1024)throw Error(video?'Choose a video smaller than 20 MB.':'Choose a photo smaller than 10 MB.');const url=URL.createObjectURL(file);try{await new Promise((resolve,reject)=>{let el=document.createElement(video?'video':'img');const timer=setTimeout(()=>{el.removeAttribute('src');reject(Error('This file could not be opened. Try another format.'))},10000);el[video?'onloadedmetadata':'onload']=()=>{clearTimeout(timer);video&&(!Number.isFinite(el.duration)||el.duration>60)?reject(Error('Choose a video no longer than 60 seconds.')):resolve()};el.onerror=()=>{clearTimeout(timer);reject(Error('This file cannot be played in this browser. Try MP4 or JPG.'))};el.src=url})}finally{URL.revokeObjectURL(url)}return file}
 function showPhotoCrop(img){photoSource=null;openDialog(`<h2>CROP YOUR PICTURE</h2><canvas id="vs-canvas" width="512" height="512" aria-label="Profile picture crop preview"></canvas><label class="field"><span>Zoom</span><input id="vs-zoom" type="range" min="1" max="3" step="0.05" value="1"></label><label class="field"><span>Horizontal position</span><input id="vs-x" type="range" min="0" max="100" value="50"></label><label class="field"><span>Vertical position</span><input id="vs-y" type="range" min="0" max="100" value="50"></label><button class="btn" data-vs="save-crop">Use this picture</button>`,'Crop profile picture');cropImage=img;cropDraw()}
 function cropDraw(){if(!cropImage)return;let c=document.getElementById('vs-canvas');if(!c)return;const z=Number(document.getElementById('vs-zoom').value),fx=Number(document.getElementById('vs-x').value)/100,fy=Number(document.getElementById('vs-y').value)/100;const side=Math.min(cropImage.width,cropImage.height)/z;c.getContext('2d').drawImage(cropImage,(cropImage.width-side)*fx,(cropImage.height-side)*fy,side,side,0,0,512,512)}
@@ -188,7 +245,7 @@ data.photo=cropped;try{persist()}catch(err){data.photo=previous;data.photoOrigin
 if(originalId)await mediaStore('delete',previousOriginal||'profile-original').catch(()=>{});
 document.getElementById('vs-dialog')?.close();render();toast('Profile picture saved')
 }finally{b.disabled=false}return}if(action==='delete'){const item=data.posts.find(x=>x.id===id);if(!item)return;if(!confirm('Delete this post from your review feed?'))return;data.posts=data.posts.filter(x=>x.id!==id);data.likes=data.likes.filter(x=>x!==id);persist();if(item.media){await mediaStore('delete',item.media);URL.revokeObjectURL(mediaUrls.get(item.media));mediaUrls.delete(item.media)}render();return}if(action==='story'){const x=activeStories().find(x=>x.id===id);if(!x)return;openDialog(`<div class="vs-person">${portrait('me')}<strong>${esc(s.name)}</strong></div><p class="vs-post-text">${esc(x.text)}</p>${tagLinks(x)}${media(x)}<p class="mini">Expires ${new Date(x.at+DAY).toLocaleString('en-GB')}</p><button class="btn-outline" data-vs="edit-item" data-kind="story" data-id="${id}">Edit story</button><button class="btn-soft" data-vs="delete-story" data-id="${id}">Delete story</button>`,'Your story');hydrate();return}if(action==='delete-story'){let x=data.stories.find(x=>x.id===id);data.stories=data.stories.filter(x=>x.id!==id);persist();if(x?.media)await mediaStore('delete',x.media);document.getElementById('vs-dialog')?.close();render();return}if(action==='preview-profile'){openDialog(s.visibility==='private'?'<h2>PRIVATE PROFILE</h2><p>Other members would not be able to view your profile.</p>':`${portrait('me','vs-large')}<h2>${esc(s.name)}</h2><p>${esc(data.bio)}</p>${data.showProgress?`<p>${s.points} points · Level ${level()}</p>`:''}${data.showAwards?profileAwardBanner(profileAwardCounts()):''}<p class="mini">Preview of your saved preferences; this is not a publicly shared profile.</p>`,'Member view preview');return}}catch(err){toast('Could not save. Browser storage may be full or unavailable.')}});
-setInterval(()=>{if(['/repbook','/repbook/feed','/repbook/stories','/repbook/reels','/profile','/repbook/member/me'].includes(path())&&!document.querySelector('dialog[open]')){const strip=document.querySelector('.vs-stories');if(strip)strip.outerHTML=storyStrip()}},60000);
-window.addEventListener('pagehide',()=>{for(const url of mediaUrls.values())URL.revokeObjectURL(url)});
+setInterval(()=>{if(['/repbook','/repbook/feed','/repbook/stories','/repbook/reels','/profile','/repbook/member/me'].includes(path())&&!document.querySelector('dialog[open]')){const strip=document.querySelector('.vs-stories');if(strip&&!strip.classList.contains('rep-challenge-previews')){strip.outerHTML=storyStrip();hydrate()}}},60000);
+window.addEventListener('pagehide',event=>{if(event.persisted)return;for(const url of mediaUrls.values())URL.revokeObjectURL(url);mediaUrls.clear();previewFrames.clear()});
 render();
 })();
