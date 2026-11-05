@@ -134,3 +134,19 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 
 /* Route navigation focuses the page itself. Keep focus rings on its controls. */
 .repbook-social main.page[tabindex="-1"]:focus {outline:none}
+
+#vs-profile {
+  color-scheme: dark;
+  accent-color: #d7afe8;
+}
+#vs-profile .field :is(input, textarea, select) {
+  background-color: #19131e;
+  border-color: #70577a;
+  color: #f4f0f6;
+  caret-color: #e4c2f3;
+}
+#vs-profile :is(input, textarea, select):focus-visible {
+  outline: 2px solid #d7afe8;
+  outline-offset: 2px;
+  border-color: #d7afe8;
+}
