@@ -230,3 +230,10 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .repbook-challenges .arena-circle svg {width:20px;height:20px}
 .repbook-challenges .arena-upload strong {align-self:end}
 .repbook-challenges .arena-upload small {align-self:start;color:#c4b4cc}
+
+.repbook-social .vs-stories .rep-own-story{position:relative;background:#211827}
+.rep-own-story .rep-story-cover{z-index:0}
+.rep-own-story::before{z-index:1;pointer-events:none}
+.rep-own-story :is(strong,small){position:relative;z-index:2}
+.rep-challenge-previews{min-width:0}
+.rep-challenge-previews .rep-own-story{flex:0 0 104px}
