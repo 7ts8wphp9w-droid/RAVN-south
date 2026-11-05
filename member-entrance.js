@@ -18,7 +18,7 @@
     document.querySelector('#vs-dialog')?.remove();
     document.body.classList.remove('arena-active', 'repbook-social');
     document.body.classList.add('gateway-active');
-    document.title = 'RAVN South · ' + (account ? route === '/login' ? 'Log in' : 'Sign up' : 'Welcome');
+    document.title = account ? 'ravnsouth · ' + (route === '/login' ? 'Log in' : 'Sign up') : 'ravnsouth | Training, Nutrition & Mentality';
     const form = account ? `<form id="gateway-form" class="gate-form">
       <h1>${route === '/signup' ? 'Sign up' : 'Log in'}</h1>
       <p>This preview uses a profile saved on this device.</p>
@@ -30,7 +30,7 @@
     const actions = s.joined ? '<a class="gate-primary" href="#/home">Enter site</a>' :
       '<a class="gate-primary" href="#/signup">Sign up</a><a class="gate-secondary" href="#/login">Log in</a>';
     document.getElementById('app').innerHTML = `<main class="gate" aria-label="RAVN South entrance">
-      <section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="RAVN South — Do it. Prove it.">
+      <section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="ravnsouth — Do it. Prove it.">
         ${account ? form : '<nav aria-label="Member access">'+actions+'</nav>'}
       </section>
       ${account ? '' : `<section class="gate-community"><a class="gate-book" href="${s.joined ? '#/repbook' : '#/login?next=repbook'}">
