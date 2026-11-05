@@ -204,3 +204,29 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .page:has(.arena-collection-stats) .tier-trophy h4 {margin:4px 0;font-size:12px}
 .page:has(.arena-collection-stats) .tier-trophy :is(p,small) {font-size:11px;line-height:1.4;margin:4px 0}
 .page:has(.arena-collection-stats) .platinum-preview {max-width:102px}
+
+.repbook-challenges .arena-upload-row {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:8px;
+}
+.repbook-challenges .arena-upload {
+  display:grid;
+  grid-template-columns:48px minmax(0,1fr);
+  column-gap:12px;
+  row-gap:2px;
+  padding:10px 14px;
+  text-align:left;
+  border:1px solid #54415d;
+  border-radius:12px;
+  background:linear-gradient(120deg,#251c2c,#141018);
+}
+.repbook-challenges .arena-circle {
+  grid-row:span 2;
+  width:48px;height:48px;
+  background:linear-gradient(145deg,#5a4465,#241b2b);
+  font-size:24px;
+}
+.repbook-challenges .arena-circle svg {width:20px;height:20px}
+.repbook-challenges .arena-upload strong {align-self:end}
+.repbook-challenges .arena-upload small {align-self:start;color:#c4b4cc}
