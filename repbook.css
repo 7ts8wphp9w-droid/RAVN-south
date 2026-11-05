@@ -125,3 +125,9 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .member-dash svg{width:23px;height:23px}.dash-awards{display:block;border-block:1px solid #48364f;margin:18px 0;padding:12px 0}.dash-awards h2{margin:0 0 10px}.dash-awards ul{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0;padding:0;list-style:none}.dash-awards li{display:grid;justify-items:center;gap:3px;line-height:1.2}.dash-awards svg{width:20px;height:20px;color:#cab0dc}.award-bronze svg{color:#d6a175}.award-silver svg{color:#d0cfda}.award-gold svg{color:#f2cc79}.award-platinum svg{color:#d5e7f5}.dash-awards small{font-size:11px;color:#d8cadf}
 .dash-membership{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid #48364f;margin-top:20px;padding:14px 0}
 .member-dash :focus-visible{outline:2px solid #e4b8fa;outline-offset:3px}
+
+/* Map the logo's dark matte to black so screen blending reveals the page beneath. */
+.brand img.brand-logo[src*="ravn-angular-logo"],.rep-brand img,.gate-brand>img {
+  filter:grayscale(1) contrast(1.8)!important;
+  mix-blend-mode:screen;
+}

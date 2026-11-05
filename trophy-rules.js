@@ -5,7 +5,16 @@ function earnedArenaBadges(){
  const awards=Array.isArray(s.badgeAwards)?s.badgeAwards:[];
  // Retain the five existing starter badges without multiplying them by points.
  const starter=arenaBadgeData().filter(b=>b.earned).map(b=>({id:'starter-'+b.id,step:b.id}));
- return [...starter,...awards];
+ const daily=[];
+ for(const log of s.logs||[]){
+  const index=['training','nutrition','checkin'].indexOf(log.key);
+  if(index<0 || !/^\d{4}-\d{2}-\d{2}$/.test(log.ref))continue;
+  const day=Date.parse(log.ref)/86400000;
+  if(!Number.isInteger(day))continue;
+  const step=trophySteps[((day+index)%5+5)%5][0];
+  daily.push({id:'daily-'+log.key+'-'+log.ref,step});
+ }
+ return [...starter,...awards,...daily];
 }
 function calculateTrophies(awards,verifiedMonth=null,now=new Date()){
  const unique=new Map();
