@@ -73,3 +73,8 @@
 }
 .arena-active .element-award :is(h3,.eyebrow),.arena-active .sectionhead .eyebrow,.arena-active .footer a:hover {color:#d9bee6}
 .arena-active .vs-tag-picker input[type=checkbox]{accent-color:#ceade0}
+.rep-tag-open{display:flex;align-items:center;gap:12px;min-height:48px;width:100%;padding:0;background:transparent;border:0;color:inherit;text-align:left;font:inherit}
+.rep-tagging #vs-create > :not(#rep-tag-screen),.rep-tagging > .vs-close{display:none}
+#rep-tag-screen .rep-editor-head{padding-left:0}
+#rep-tag-screen .vs-tag-picker{padding:18px 0}
+#rep-tag-screen .vs-tag-picker label{min-height:46px;border-bottom:1px solid #392d40}
