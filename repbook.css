@@ -166,3 +166,41 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .rep-story-cover {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:-2}
 .rep-own-story::before {content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(transparent,#100b16e6)}
 .repbook-social .rep-own-story small {color:#fff;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Keep collection sizing local to the achievements page. */
+.page:has(.arena-collection-stats) {
+  --award-panel:#18131d; --award-edge:#48364f; --award-ink:#ead9f1;
+  background:linear-gradient(#17111c,#0b090e 300px);
+}
+.page:has(.arena-collection-stats) :is(.hero-custom,.section) {padding:16px 0;background:transparent;border:0}
+.page:has(.arena-collection-stats) .hero-custom {min-height:0}
+.page:has(.arena-collection-stats) .hero-custom::before,.page:has(.arena-collection-stats) .hero-custom::after {display:none}
+.page:has(.arena-collection-stats) .hero-custom .wrap {padding-block:0}
+.page:has(.arena-collection-stats) .hero-custom :is(.eyebrow,.lead) {display:none}
+.page:has(.arena-collection-stats) .hero-custom h1 {font-size:clamp(23px,4vw,34px);margin:0;color:var(--award-ink)}
+.page:has(.arena-collection-stats) .sectionhead {margin-bottom:8px}
+.page:has(.arena-collection-stats) h2 {font-size:clamp(17px,3vw,23px);margin:0;color:var(--award-ink)}
+.page:has(.arena-collection-stats) :is(.element-award,.tier-trophy,.platinum-trophy,.card,.trophy-rules span) {background:var(--award-panel);border-color:var(--award-edge);padding:12px}
+.page:has(.arena-collection-stats) :is(p,small,.eyebrow,.tier-trophy,.trophy-symbol-story) {color:#c7b9cf}
+.page:has(.arena-collection-stats) :is(.element-award h3,.trophy-rules strong,.platinum-trophy .list-row strong) {color:var(--award-ink)}
+.arena-collection-stats.stats {grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.arena-collection-stats .stat strong {font-size:24px;line-height:1.15}
+.arena-collection-stats .stat span {font-size:12px}
+.page:has(.arena-collection-stats) .element-badge-grid {max-width:none;grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));gap:8px}
+.page:has(.arena-collection-stats) .element-award:last-child {grid-column:auto;max-width:none}
+.page:has(.arena-collection-stats) .element-preview {max-width:76px;margin:0 auto 6px}
+.page:has(.arena-collection-stats) .element-award .eyebrow {margin:4px 0}
+.page:has(.arena-collection-stats) .element-award h3 {font-size:17px;margin:2px 0}
+.page:has(.arena-collection-stats) .award-status {padding:2px 6px;color:#cabbcf;border-color:#54435c;font-size:11px}
+.page:has(.arena-collection-stats) .award-status.earned {background:#39283f;color:#ecd9f6;border-color:#795988}
+.page:has(.arena-collection-stats) .element-award small {display:block;margin-top:4px}
+.page:has(.arena-collection-stats) :is(.award-progress,.tier-trophy progress){display:none}
+.page:has(.arena-collection-stats) .trophy-rules {flex-direction:row;gap:6px;margin:8px 0}
+.page:has(.arena-collection-stats) .trophy-rules span {padding:5px 8px;font-size:12px}
+.page:has(.arena-collection-stats) .step-trophies {gap:10px}
+.page:has(.arena-collection-stats) .step-trophies h3 {font-size:17px}
+.page:has(.arena-collection-stats) .trophy-tier-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.page:has(.arena-collection-stats) .tier-trophy {padding:8px 4px;overflow-wrap:anywhere}
+.page:has(.arena-collection-stats) .tier-trophy h4 {margin:4px 0;font-size:12px}
+.page:has(.arena-collection-stats) .tier-trophy :is(p,small) {font-size:11px;line-height:1.4;margin:4px 0}
+.page:has(.arena-collection-stats) .platinum-preview {max-width:102px}
