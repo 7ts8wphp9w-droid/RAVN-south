@@ -31,9 +31,8 @@
   display: none;
 }
 
-@font-face{font-family:'Repbook Angular';src:url(data:font/woff;base64,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) format('woff');font-weight:100 900;font-display:swap}
 .arena-active :is(h1,h2,h3),.arena-active .rep-header h1,.arena-active .vs-heading h1 {
-  font-family:'Repbook Angular',Arial,sans-serif;
+  font-family:'Cinzel',Georgia,serif;
   text-transform:uppercase;
   letter-spacing:.06em;
 }
@@ -88,7 +87,7 @@ body.gateway-active{margin:0;background:#030304;color:#f7f2fa;color-scheme:dark}
 .gate-book{display:inline-flex;align-items:center;flex-direction:column;color:#f0dff8}
 .gate-book span{display:grid;place-items:center;width:94px;height:94px;border-radius:26px;border:1px solid #dbc3e888;background:linear-gradient(145deg,#e4caef33,#a87fb112);box-shadow:inset 0 1px 1px #ffffff45,0 10px 30px #0004;backdrop-filter:blur(12px)}
 .gate-book svg{width:56px;height:56px}
-.gate-book strong,.gate-form h1{font-family:'Repbook Angular',Arial,sans-serif;text-transform:uppercase;letter-spacing:.09em}
+.gate-book strong,.gate-form h1{font-family:'Cinzel',Georgia,serif;text-transform:uppercase;letter-spacing:.09em}
 .gate-book strong{margin-top:14px;font-size:23px}.gate-book small,.gate-form p{color:#d2c1da}
 .gate-form{display:grid;gap:12px}.gate-form>*{margin:0}.gate-form label{text-align:left}.gate-form input{display:block;width:100%;min-height:46px;padding:10px;margin-top:6px;background:#151217;color:white;border:1px solid #725d7b;border-radius:4px}.gate-form #gate-error:empty{display:none}.gate-form a{padding:10px}
 .gate :focus-visible{outline:2px solid #ebcefa;outline-offset:4px}
@@ -101,7 +100,7 @@ body.gateway-active{margin:0;background:#030304;color:#f7f2fa;color-scheme:dark}
   background:linear-gradient(165deg,#35233d,#140f19 85%);
 }
 .restored-community-grid a[href="#/repbook/challenges"] h3 {
-  font-family:'Repbook Angular',Arial,sans-serif;
+  font-family:'Cinzel',Georgia,serif;
   color:#e4c2f3;
 }
 .restored-community-grid a[href="#/repbook/challenges"] .btn-outline {
@@ -114,7 +113,7 @@ body:has(.member-dash) :is(.topbar,.footer,.page){background:#0d0a10;border-colo
 body:has(.member-dash) :is(.brand-logo){filter:grayscale(1) contrast(1.2)}
 body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-soft){background:#211927;border-color:#513d5b;color:#d6c7de}
 .member-dash{max-width:680px;margin:auto;padding:20px clamp(14px,4vw,30px) 48px}
-.member-dash h1,.member-dash h2{font-family:'Repbook Angular',Arial,sans-serif;text-transform:uppercase;color:#e4caee;letter-spacing:.055em}
+.member-dash h1,.member-dash h2{font-family:'Cinzel',Georgia,serif;text-transform:uppercase;color:#e4caee;letter-spacing:.055em}
 .member-dash h1{font-size:clamp(26px,5vw,38px);margin:0}.member-dash header p{color:#d1c2d9;margin:4px 0 14px}
 .member-dash h2{font-size:16px;margin:22px 0 10px}
 .dash-points{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:#1b151f;border-radius:10px;padding:12px 14px}
@@ -150,3 +149,20 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
   outline-offset: 2px;
   border-color: #d7afe8;
 }
+
+
+.repbook-social .vs-post-tools .rep-like {
+  display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;
+  background:transparent;color:#e4d5eb;cursor:pointer;
+}
+.repbook-social .vs-post-tools .rep-like[aria-pressed=true] {color:#ff495d;background:transparent;border:0}
+.repbook-social .vs-post-tools .rep-like .rep-icon {width:24px;height:24px}
+.rep-like[aria-pressed=true] .rep-icon {fill:currentColor}
+.repbook-social .vs-stories .rep-own-story {
+  position:relative;isolation:isolate;overflow:hidden;justify-content:flex-end;
+  padding:10px 6px;border-radius:14px;height:136px;min-width:104px;
+  background:#251a2d;color:white;
+}
+.rep-story-cover {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:-2}
+.rep-own-story::before {content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(transparent,#100b16e6)}
+.repbook-social .rep-own-story small {color:#fff;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
