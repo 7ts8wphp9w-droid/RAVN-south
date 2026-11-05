@@ -92,3 +92,20 @@ body.gateway-active{margin:0;background:#030304;color:#f7f2fa;color-scheme:dark}
 .gate-book strong{margin-top:14px;font-size:23px}.gate-book small,.gate-form p{color:#d2c1da}
 .gate-form{display:grid;gap:12px}.gate-form>*{margin:0}.gate-form label{text-align:left}.gate-form input{display:block;width:100%;min-height:46px;padding:10px;margin-top:6px;background:#151217;color:white;border:1px solid #725d7b;border-radius:4px}.gate-form #gate-error:empty{display:none}.gate-form a{padding:10px}
 .gate :focus-visible{outline:2px solid #ebcefa;outline-offset:4px}
+
+.restored-community-grid a[href="#/repbook/challenges"] {
+  border-color:#836293;
+  background:#201525;
+}
+.restored-community-grid a[href="#/repbook/challenges"] .restored-community-copy {
+  background:linear-gradient(165deg,#35233d,#140f19 85%);
+}
+.restored-community-grid a[href="#/repbook/challenges"] h3 {
+  font-family:'Repbook Angular',Arial,sans-serif;
+  color:#e4c2f3;
+}
+.restored-community-grid a[href="#/repbook/challenges"] .btn-outline {
+  background:linear-gradient(145deg,#d9b5ec22,#ae83bd0d);
+  border-color:#ab82bc;
+  color:#f2dffb;
+}
