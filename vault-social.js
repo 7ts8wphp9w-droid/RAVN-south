@@ -255,7 +255,7 @@ const version=++uploadVersion;pending=null;uploadChecking=true;
 const input=e.target,error=document.getElementById('vs-error'),preview=document.getElementById('vs-media-preview'),form=input.closest('form'),button=form.querySelector('[type=submit]');
 preview.replaceChildren();error.textContent='Checking file…';button.disabled=true;
 try{const file=await validateFile(input.files[0]);if(version!==uploadVersion||!input.isConnected)return;
-pending=file;error.textContent=file.name;
+pending=file;error.textContent='';
 const el=document.createElement(file.type.startsWith('video/')?'video':'img'),url=URL.createObjectURL(file);
 el.src=url;el.className='vs-upload-preview';if(el.tagName==='VIDEO'){el.controls=true;el.playsInline=true}preview.append(el);
 document.getElementById('vs-dialog').addEventListener('close',()=>URL.revokeObjectURL(url),{once:true});
