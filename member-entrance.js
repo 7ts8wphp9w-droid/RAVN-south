@@ -29,7 +29,7 @@
     </form>` : '';
     const actions = s.joined ? '<a class="gate-primary" href="#/home">Enter site</a>' :
       '<a class="gate-primary" href="#/signup">Sign up</a><a class="gate-secondary" href="#/login">Log in</a>';
-    document.getElementById('app').innerHTML = `<main class="gate" aria-label="RAVN South entrance">
+    document.getElementById('app').innerHTML = `<main class="gate" aria-label="ravnsouth entrance">
       <section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="ravnsouth — Do it. Prove it.">
         ${account ? form : '<nav aria-label="Member access">'+actions+'</nav>'}
       </section>
