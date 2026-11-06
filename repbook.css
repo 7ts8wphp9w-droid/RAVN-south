@@ -259,3 +259,11 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .arena-active .rep-editor #vs-text[data-colour="Midnight"],.arena-active .vs-post-text[data-colour="Midnight"]{background:#231e34}
 .repbook-social .vs-post-text[data-colour]:not([data-colour="Default"]){padding:14px;border-radius:8px}
 @media(max-width:620px){.rep-editor .rep-editor-tools{margin-inline:-10px}.rep-editor .rep-editor-head h2{white-space:nowrap}}
+
+#vs-dialog.story-player {padding:0 0 12px;overflow:auto;background:#101014}
+#vs-dialog.story-player .vs-close {position:absolute;z-index:2;right:8px;top:8px;background:#17171bc9;border-radius:50%}
+#vs-dialog.story-player .vs-media {display:block;width:100%;height:auto;max-height:calc(82dvh - 64px);object-fit:contain;background:#090909}
+.story-player .story-tools,.story-player [data-comments] {padding:8px 16px}
+.story-player .story-tools {display:flex;align-items:center;gap:16px}
+.story-player .rep-like[aria-pressed=true] {color:#ff495d}
+.story-player [data-comments] li {overflow-wrap:anywhere}
