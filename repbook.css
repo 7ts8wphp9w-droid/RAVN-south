@@ -267,3 +267,20 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .story-player .story-tools {display:flex;align-items:center;gap:16px}
 .story-player .rep-like[aria-pressed=true] {color:#ff495d}
 .story-player [data-comments] li {overflow-wrap:anywhere}
+
+/* Photo/video editor and saved presentation. */
+.rep-media-stage{position:relative;isolation:isolate;overflow:hidden;border-radius:10px;background:#090909}
+.rep-media-stage>.vs-media,.rep-media-stage>.vs-upload-preview{display:block;width:100%;margin:0 auto;object-fit:contain}
+.rep-media-stage[data-effect-filter="Mono"]>img,.rep-media-stage[data-effect-filter="Mono"]>video{filter:grayscale(1)}
+.rep-media-stage[data-effect-filter="Warm"]>img,.rep-media-stage[data-effect-filter="Warm"]>video{filter:sepia(.25) saturate(1.2)}
+.rep-media-stage[data-effect-filter="Cool"]>img,.rep-media-stage[data-effect-filter="Cool"]>video{filter:saturate(.9) hue-rotate(15deg)}
+.rep-media-stage[data-effect-filter="Vivid"]>img,.rep-media-stage[data-effect-filter="Vivid"]>video{filter:saturate(1.5) contrast(1.1)}
+.rep-media-stage[data-effect-filter="Soft"]>img,.rep-media-stage[data-effect-filter="Soft"]>video{filter:contrast(.9) saturate(.85) brightness(1.08)}
+.rep-overlay{position:absolute;z-index:1;left:7%;right:7%;pointer-events:none;text-align:center;font-size:clamp(18px,5vw,32px);font-weight:700;line-height:1.2;white-space:pre-wrap;overflow-wrap:anywhere;text-shadow:0 2px 4px #000,0 0 8px #000;margin:0}
+.rep-overlay-top{top:12%}.rep-overlay-middle{top:50%;transform:translateY(-50%)}.rep-overlay-bottom{bottom:20%}
+.rep-effects{padding:8px 0}.rep-effects label{display:grid;gap:5px;font-size:14px;margin:10px 0}.rep-effect-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.rep-effects summary{font-weight:600}.rep-effects button{margin:8px 0}
+.rep-mention-search{display:grid;gap:6px;margin:12px 0}.rep-mention-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}.rep-mention-suggestions button{min-height:44px;padding:8px 14px;background:#30233b;color:#fff;border:1px solid #826e8c;border-radius:16px}
+.vs-tag-picker label[hidden]{display:none}.rep-mention-link{color:#e7cbf3;text-decoration:underline}.story-player>.vs-tags,.story-player>.vs-post-text{padding:0 16px}
+.rep-own-story .rep-overlay{font-size:14px;z-index:2}.rep-own-story.rep-media-stage{border-radius:18px}
+
+.rep-mention-suggestions[hidden]{display:none}
