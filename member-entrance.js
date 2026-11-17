@@ -1,6 +1,6 @@
 /* The entrance uses the same device-local membership as the rest of the preview. */
 (() => {
-  const book = '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M32 49V18L18 11H7v32h11l14 6Zm0 0V18l14-7h11v32H46l-14 6Z" stroke="currentColor" stroke-width="3" stroke-linejoin="bevel"/><path d="m39 25 10-5m-10 12 10-5" stroke="currentColor" stroke-width="3"/></svg>';
+  const book = '<img class="repbook-app-symbol" src="./assets/repbook-app-symbol.svg" alt="" aria-hidden="true">';
   const previousRender = render;
   let destination = '/home';
 
