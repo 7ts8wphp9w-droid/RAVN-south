@@ -4,7 +4,7 @@ function profileAwardCounts(data=arenaTrophyData()){
  return {badges:data.badges,bronze:data.steps.reduce((n,x)=>n+x.bronze,0),silver:data.steps.reduce((n,x)=>n+x.silver,0),gold:data.steps.reduce((n,x)=>n+x.gold,0),platinum:data.platinum?1:0};
 }
 function profileAwardBanner(counts){
- return `<aside class="profile-award-banner" aria-label="Award totals"><div class="eyebrow">ARENA HONOURS</div><ul>${profileAwardKeys.map((key,i)=>`<li><span class="profile-award-icon"><img src="${A}profile-generic-${key}.svg" alt="" width="42" height="44" aria-hidden="true"></span><span class="profile-award-name">${['Badges','Bronze','Silver','Gold','Platinum'][i]}</span><strong aria-label="${counts[key]} ${key}${i?' trophies':''}">${counts[key].toLocaleString('en-GB')}</strong></li>`).join('')}</ul></aside>`;
+ return `<aside class="profile-award-banner" aria-label="Award totals"><div class="eyebrow">ARENA HONOURS</div><ul>${profileAwardKeys.map((key,i)=>`<li><span class="profile-award-icon"><img src="./assets/profile-generic-${key}.svg" alt="" width="42" height="44" aria-hidden="true"></span><span class="profile-award-name">${['Badges','Bronze','Silver','Gold','Platinum'][i]}</span><strong aria-label="${counts[key]} ${key}${i?' trophies':''}">${counts[key].toLocaleString('en-GB')}</strong></li>`).join('')}</ul></aside>`;
 }
 function encodeProfileSnapshot(snapshot){return btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(snapshot)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 function decodeProfileSnapshot(encoded){
