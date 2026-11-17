@@ -43,7 +43,7 @@ function reelCircle(){
 window.ravnChallengePreviews=mode=>{
  const items=data.posts.filter(x=>x.type==='reel' && x.arenaMode===mode);
  if(!items.length)return '';
- const label=mode==='tag'?'Tag reel':'Reel challenge';
+ const label=mode==='tag'?'Tag challenge':'Reel challenge';
  return `<div class="vs-stories rep-challenge-previews" aria-label="${label} videos">${items.map(x=>previewTile(x,label)).join('')}</div>`;
 };
 function storyStrip(){const own=activeStories(),friends=visibleFriendStories();return `<div data-story-rows><section class="vs-stories" aria-label="Reels">${reelCircle()}</section><section class="vs-stories" aria-label="Stories">${own.map(x=>previewTile(x,'Your story')).join('')}<button type="button" class="vs-story" data-vs="add-media" data-kind="story" aria-label="Add your story"><span class="vs-story-ring">${icon('plus')}</span><strong>${own.length?'Add story':'Your story'}</strong><small>Tap to add</small></button>${friends.map(x=>`<button type="button" class="vs-story" data-vs="friend-story" data-id="${x.id}" aria-label="View ${esc(member(x.author).name)}’s sample story"><span class="vs-story-ring">${portrait(x.author)}</span><strong>${esc(member(x.author).name)}</strong><small>Sample story</small></button>`).join('')}<p>${friends.length?'Stories from people you follow.':'Friends’ stories appear here when you follow them.'}<br><small>Stories last 24 hours. Sample members are fictional.</small></p></section></div>`}
@@ -125,7 +125,7 @@ function composer(kind='post', existing=null, arenaMode=null, startTagging=false
         <input id="vs-upload" type="file" accept="${arenaMode||existing?.arenaMode?'video/mp4,video/webm,video/quicktime':'image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime'}">
       </label>
       <button type="button" class="rep-tag-open" aria-controls="rep-tag-screen">${icon('tag')}<span>Tag people</span></button>
-      ${postTools(existing)}<small>Saved on this device · Videos up to 60 seconds</small>
+      ${postTools(existing)}<small data-upload-limits></small>
     </div>
     <section id="rep-tag-screen" hidden aria-label="Tag people">
       <header class="rep-editor-head"><h2>Tag people</h2><button type="button" class="rep-glass rep-tag-done">Done</button></header>
@@ -136,6 +136,8 @@ function composer(kind='post', existing=null, arenaMode=null, startTagging=false
   const options=dialog.querySelector('.rep-post-options');
   function syncPostTools(){
     options.hidden=format.value!=='post';
+    const limits=mediaLimits(format.value);
+    dialog.querySelector('[data-upload-limits]').textContent=`Saved on this device · Photos up to 20 MB · Videos up to ${limits.videoMB} MB / ${limits.seconds===60?'60 seconds':'3 minutes'}`;
   }
   format.addEventListener('change',syncPostTools);
   syncPostTools();
@@ -248,14 +250,41 @@ async function loadTile(el){
  }
 }
 function hydrate(){document.querySelectorAll('[data-media]').forEach(loadTile)}
-async function validateFile(file){if(!file)throw Error('Choose a photo or video.');if(!/^(image\/(jpeg|png|webp)|video\/(mp4|webm|quicktime))$/.test(file.type))throw Error('Choose a JPG, PNG, WebP, MP4, MOV or WebM file.');const video=file.type.startsWith('video/');if(file.size>(video?20:10)*1024*1024)throw Error(video?'Choose a video smaller than 20 MB.':'Choose a photo smaller than 10 MB.');const url=URL.createObjectURL(file);try{await new Promise((resolve,reject)=>{let el=document.createElement(video?'video':'img');const timer=setTimeout(()=>{el.removeAttribute('src');reject(Error('This file could not be opened. Try another format.'))},10000);el[video?'onloadedmetadata':'onload']=()=>{clearTimeout(timer);video&&(!Number.isFinite(el.duration)||el.duration>60)?reject(Error('Choose a video no longer than 60 seconds.')):resolve()};el.onerror=()=>{clearTimeout(timer);reject(Error('This file cannot be played in this browser. Try MP4 or JPG.'))};el.src=url})}finally{URL.revokeObjectURL(url)}return file}
+function mediaLimits(kind='post') {
+ return kind==='story'?{videoMB:100,seconds:60}:{videoMB:250,seconds:180};
+}
+async function validateFile(file,kind='post') {
+ if(!file)throw Error('Choose a photo or video.');
+ if(!/^(image\/(jpeg|png|webp)|video\/(mp4|webm|quicktime))$/.test(file.type))throw Error('Choose a JPG, PNG, WebP, MP4, MOV or WebM file.');
+ const video=file.type.startsWith('video/'),limits=mediaLimits(kind),maxMB=video?limits.videoMB:20;
+ if(file.size>maxMB*1024*1024)throw Error(`Choose a ${video?'video':'photo'} no larger than ${maxMB} MB.`);
+ const url=URL.createObjectURL(file);
+ let el;
+ try {
+  await new Promise((resolve,reject)=>{
+   el=document.createElement(video?'video':'img');
+   if(video)el.preload='metadata';
+   const timer=setTimeout(()=>reject(Error('This file could not be opened. Try another format.')),15000);
+   el[video?'onloadedmetadata':'onload']=()=>{
+    clearTimeout(timer);
+    if(video&&(!Number.isFinite(el.duration)||el.duration<=0))reject(Error('This video has no readable duration. Try another file.'));
+    else if(video&&el.duration>limits.seconds)reject(Error(`Choose a video no longer than ${limits.seconds===60?'60 seconds':'3 minutes'}.`));
+    else resolve();
+   };
+   el.onerror=()=>{clearTimeout(timer);reject(Error('This file cannot be played in this browser. Try MP4 or JPG.'))};
+   el.src=url;
+  });
+ } finally {if(el){el.onloadedmetadata=el.onload=el.onerror=null;el.removeAttribute('src');if(video)el.load()}URL.revokeObjectURL(url)}
+ return file;
+}
+
 function showPhotoCrop(img){photoSource=null;openDialog(`<h2>CROP YOUR PICTURE</h2><canvas id="vs-canvas" width="512" height="512" aria-label="Profile picture crop preview"></canvas><label class="field"><span>Zoom</span><input id="vs-zoom" type="range" min="1" max="3" step="0.05" value="1"></label><label class="field"><span>Horizontal position</span><input id="vs-x" type="range" min="0" max="100" value="50"></label><label class="field"><span>Vertical position</span><input id="vs-y" type="range" min="0" max="100" value="50"></label><button class="btn" data-vs="save-crop">Use this picture</button>`,'Crop profile picture');cropImage=img;cropDraw()}
 function cropDraw(){if(!cropImage)return;let c=document.getElementById('vs-canvas');if(!c)return;const z=Number(document.getElementById('vs-zoom').value),fx=Number(document.getElementById('vs-x').value)/100,fy=Number(document.getElementById('vs-y').value)/100;const side=Math.min(cropImage.width,cropImage.height)/z;c.getContext('2d').drawImage(cropImage,(cropImage.width-side)*fx,(cropImage.height-side)*fy,side,side,0,0,512,512)}
 document.addEventListener('change',async e=>{if(e.target.id==='vs-kind'){const dialog=e.target.closest('dialog');const title='Create '+e.target.value;dialog.querySelector('h2').textContent=title;dialog.setAttribute('aria-label',title)}if(e.target.id==='vs-upload'){
 const version=++uploadVersion;pending=null;uploadChecking=true;
 const input=e.target,error=document.getElementById('vs-error'),preview=document.getElementById('vs-media-preview'),form=input.closest('form'),button=form.querySelector('[type=submit]');
 preview.replaceChildren();error.textContent='Checking file…';button.disabled=true;
-try{const file=await validateFile(input.files[0]);if(version!==uploadVersion||!input.isConnected)return;
+try{const file=await validateFile(input.files[0],form.querySelector('#vs-kind').value);if(version!==uploadVersion||!input.isConnected)return;
 pending=file;error.textContent='';
 const el=document.createElement(file.type.startsWith('video/')?'video':'img'),url=URL.createObjectURL(file);
 el.src=url;el.className='vs-upload-preview';if(el.tagName==='VIDEO'){el.controls=true;el.playsInline=true}preview.append(el);
@@ -264,7 +293,7 @@ document.getElementById('vs-dialog').addEventListener('close',()=>URL.revokeObje
 finally{if(version===uploadVersion){uploadChecking=false;if(button.isConnected)button.disabled=false}}
 }if(e.target.id==='vs-photo'){const file=e.target.files[0];if(!file)return;try{if(!file.type.startsWith('image/'))throw Error('Choose a JPG, PNG or WebP photo.');await validateFile(file);const url=URL.createObjectURL(file),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});URL.revokeObjectURL(url);showPhotoCrop(img);photoSource=file}catch(err){toast(err.message||'Could not open that picture.')}}});
 document.addEventListener('input',e=>{if(['vs-zoom','vs-x','vs-y'].includes(e.target.id))cropDraw()});
-document.addEventListener('submit',async e=>{if(e.target.id==='vs-profile'){e.preventDefault();const f=e.target;try{s.name=f.elements.displayName.value.trim();if(s.name.length<2)throw Error('Use a display name of at least two characters.');s.visibility=f.elements.visibility.value;s.joined=true;data.bio=f.elements.bio.value.trim();data.showProgress=f.elements.progress.checked;data.showAwards=f.elements.awards.checked;persist();save();render();toast('Profile saved on this browser')}catch(err){document.getElementById('vs-save-status').textContent=err.message}return}if(e.target.id!=='vs-create')return;e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]'),err=document.getElementById('vs-error');if(uploadChecking){err.textContent='Please wait while your file is checked.';return}b.disabled=true;const selectedFile=pending;let mediaId=null;try{const kind=document.getElementById('vs-kind').value,text=document.getElementById('vs-text').value.trim(),editId=f.dataset.editId,existing=editId?editableItem(kind,editId):null;if(editId&&!existing)throw Error('This update is no longer available.');if(document.getElementById('vs-upload').files.length&&!selectedFile)throw Error('Choose a supported file or clear the file selection before saving.');const details=kind==='post'?{activity:f.elements.activity.value.trim(),place:f.elements.place.value.trim()}:{};if(!text&&!details.activity&&!details.place&&!selectedFile&&!existing?.media)throw Error('Add an update or choose a file first.');if(kind==='reel'&&!selectedFile&&!existing?.media)throw Error('Choose a photo or video for your reel.');if(f.dataset.arenaMode&&!(selectedFile?selectedFile.type:(existing?.mime||'video/mp4')).startsWith('video/'))throw Error('Choose a video for your challenge.');if(selectedFile){mediaId=uid();await mediaStore('put',mediaId,selectedFile)}saveEntry(kind,text,existing,selectedFile,mediaId,Array.from(f.querySelectorAll('[name=taggedMember]:checked'),el=>el.value),f.dataset.arenaMode||null,details);if(mediaId&&existing?.media){await mediaStore('delete',existing.media).catch(()=>{});if(mediaUrls.has(existing.media)){URL.revokeObjectURL(mediaUrls.get(existing.media));mediaUrls.delete(existing.media)}}if(f.isConnected){f.closest('dialog')?.close();tab='all';render();if(kind==='reel')navto(f.dataset.arenaMode?'/repbook/challenges':'/repbook/reels')}toast(existing?'Changes saved on this browser':'Saved on this browser')}catch(ex){if(mediaId)await mediaStore('delete',mediaId).catch(()=>{});if(err.isConnected)err.textContent=ex.message||'Storage is full. Delete an upload and try again.'}finally{b.disabled=false}});
+document.addEventListener('submit',async e=>{if(e.target.id==='vs-profile'){e.preventDefault();const f=e.target;try{s.name=f.elements.displayName.value.trim();if(s.name.length<2)throw Error('Use a display name of at least two characters.');s.visibility=f.elements.visibility.value;s.joined=true;data.bio=f.elements.bio.value.trim();data.showProgress=f.elements.progress.checked;data.showAwards=f.elements.awards.checked;persist();save();render();toast('Profile saved on this browser')}catch(err){document.getElementById('vs-save-status').textContent=err.message}return}if(e.target.id!=='vs-create')return;e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]'),err=document.getElementById('vs-error');if(uploadChecking){err.textContent='Please wait while your file is checked.';return}b.disabled=true;const selectedFile=pending;let mediaId=null;try{const kind=document.getElementById('vs-kind').value,text=document.getElementById('vs-text').value.trim(),editId=f.dataset.editId,existing=editId?editableItem(kind,editId):null;if(editId&&!existing)throw Error('This update is no longer available.');if(document.getElementById('vs-upload').files.length&&!selectedFile)throw Error('Choose a supported file or clear the file selection before saving.');const details=kind==='post'?{activity:f.elements.activity.value.trim(),place:f.elements.place.value.trim()}:{};if(!text&&!details.activity&&!details.place&&!selectedFile&&!existing?.media)throw Error('Add an update or choose a file first.');if(kind==='reel'&&!selectedFile&&!existing?.media)throw Error('Choose a photo or video for your reel.');if(f.dataset.arenaMode&&!(selectedFile?selectedFile.type:(existing?.mime||'video/mp4')).startsWith('video/'))throw Error('Choose a video for your challenge.');if(selectedFile){await validateFile(selectedFile,kind);if(navigator.storage?.estimate){const storage=await navigator.storage.estimate();if(storage.quota&&storage.usage+selectedFile.size>storage.quota)throw Error('Not enough storage on this device. Delete an upload or choose a smaller file.')}mediaId=uid();await mediaStore('put',mediaId,selectedFile)}saveEntry(kind,text,existing,selectedFile,mediaId,Array.from(f.querySelectorAll('[name=taggedMember]:checked'),el=>el.value),f.dataset.arenaMode||null,details);if(mediaId&&existing?.media){await mediaStore('delete',existing.media).catch(()=>{});if(mediaUrls.has(existing.media)){URL.revokeObjectURL(mediaUrls.get(existing.media));mediaUrls.delete(existing.media)}}if(f.isConnected){f.closest('dialog')?.close();tab='all';render();if(kind==='reel')navto(f.dataset.arenaMode?'/repbook/challenges':'/repbook/reels')}toast(existing?'Changes saved on this browser':'Saved on this browser')}catch(ex){if(mediaId)await mediaStore('delete',mediaId).catch(()=>{});if(err.isConnected)err.textContent=ex.message||'Storage is full. Delete an upload and try again.'}finally{b.disabled=false}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-vs]');if(!b)return;const action=b.dataset.vs,id=b.dataset.id;try{if(action==='view-reel'||action==='comment-reel'){
  const reel=data.posts.find(item=>item.id===id&&item.type==='reel');
  if(reel)openMediaViewer(reel,action==='comment-reel');
