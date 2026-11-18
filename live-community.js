@@ -1,3 +1,4 @@
+const recoveryRedirect = new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery';
 const community = (() => {
   const client = window.supabase.createClient('https://boalacuzelujpifbbptm.supabase.co','sb_publishable_WkJOLNBIHKTrU7Jyr1aLvg_tIt1JVtI');
   const bucket = client.storage.from('vault-media');
