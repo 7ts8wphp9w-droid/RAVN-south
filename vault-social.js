@@ -85,7 +85,7 @@ function previewTile(item,label) {
  const attrs=`class="rep-story-cover" data-media="${esc(item.media)}" aria-hidden="true"`;
  const video=isVideoMedia(item);
  const cover=!item.media?'':video
-  ? `<img ${attrs} alt="" data-story-preview hidden><small data-preview-status>Loading preview…</small>`
+  ? `<img ${attrs} alt="" data-story-preview="${item.type}" hidden><small data-preview-status>Loading preview…</small>`
   : `<img ${attrs} alt="">`;
  return `<button type="button" class="vs-story rep-own-story rep-media-stage" data-effect-filter="${editor.clean(item.effects).filter}" data-vs="${item.type==='story'?'story':'view-reel'}" data-kind="${item.type}" data-id="${esc(item.id)}" aria-label="Open ${esc(label)}">
   ${cover}${editor.overlay(item.effects)}<strong>${esc(label)}</strong>${item.media?'':`<small>${esc(item.text)}</small>`}</button>`;
@@ -112,15 +112,16 @@ function openMediaViewer(item, showComments=false){
   ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
   <div class="vs-post-tools story-tools">
-   <button type="button" class="rep-react" data-vs="like" data-id="${esc(id)}" aria-label="Rep this ${esc(type)}" aria-pressed="${data.likes.includes(id)}">${repDumbbell()}${type==='post'?postRepCount(id):'<span>Rep</span>'}</button>
+   <button type="button" class="rep-react" data-vs="like" data-id="${esc(id)}" aria-label="Rep this ${esc(type)}" aria-pressed="${data.likes.includes(id)}">${repDumbbell()}${type!=='story'?postRepCount(id):'<span>Rep</span>'}</button>
    <button type="button" class="btn-soft" data-comments-toggle aria-expanded="false">Comment</button>
   </div>
   <div data-comments hidden><ul aria-label="${type} comments"></ul>
    <form><label>Comment<input name="comment" required maxlength="500" autocomplete="off"></label><button class="btn-soft">Post comment</button></form>
   </div>`,'View '+type);
  dialog.classList.add('story-player');
+ if(type==='reel')dialog.classList.add('reel-player');
  const video=dialog.querySelector('video');
- if(video){video.muted=true;video.autoplay=true}
+ if(video){video.muted=type!=='reel';video.autoplay=true;video.loop=type==='reel'}
  hydrate();
  const panel=dialog.querySelector('[data-comments]');
  const list=panel.querySelector('ul');
@@ -242,7 +243,7 @@ function composer(kind='post', existing=null, arenaMode=null, startTagging=false
 function editableItem(kind,id){return (kind==='story'?activeStories():data.posts).find(x=>x.id===id&&x.author==='me'&&x.type===kind)}
 // Each tile displays ordinary images, even when the browser pauses inline video.
 const previewFrames=new Map();
-async function captureFrames(src){
+async function captureFrames(src,isReel){
  const video=document.createElement('video');video.crossOrigin='anonymous';
  video.muted=true;
  video.playsInline=true;
@@ -270,8 +271,10 @@ async function captureFrames(src){
   const scale=Math.min(1,320/Math.max(video.videoWidth,video.videoHeight));
   canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
   canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
-  for(const fraction of [0.12,0.32,0.52,0.72,0.9]){
-   await waitFor('seeked',()=>{video.currentTime=video.duration*fraction});
+  const span=isReel?Math.min(3,video.duration):video.duration;
+  const fractions=isReel?[0.01,.125,.25,.375,.5,.625,.75,.875,.99]:[.12,.32,.52,.72,.9];
+  for(const fraction of fractions){
+   await waitFor('seeked',()=>{video.currentTime=span*fraction});
    canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
    frames.push(canvas.toDataURL('image/jpeg',0.76));
   }
@@ -283,11 +286,12 @@ setInterval(()=>{
  if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
  for(const tile of document.querySelectorAll('[data-story-preview]')){
   const state=tileFrames.get(tile);
-  if(!state||state.frames.length<2)continue;
+  if(!state||state.frames.length<2||performance.now()<state.nextFrame)continue;
+  state.nextFrame=performance.now()+(tile.dataset.storyPreview==='reel'?150:900);
   state.index=(state.index+1)%state.frames.length;
   tile.src=state.frames[state.index];
  }
-},900);
+},150);
 async function loadTile(el){
  const key=el.dataset.media;
  const status=el.parentElement?.querySelector('[data-preview-status]');
@@ -300,13 +304,13 @@ async function loadTile(el){
    return;
   }
   if(tileFrames.has(el))return;
-  if(!previewFrames.has(key))previewFrames.set(key,captureFrames(src));
+  if(!previewFrames.has(key))previewFrames.set(key,captureFrames(src,el.dataset.storyPreview==='reel'));
   const frames=await previewFrames.get(key);
   if(!el.isConnected)return;
   if(!frames.length)throw Error('Tap to open video');
   el.src=frames[0];
   el.hidden=false;
-  tileFrames.set(el,{frames,index:0});
+  tileFrames.set(el,{frames,index:0,nextFrame:0});
   if(status)status.hidden=true;
  }catch(error){
   if(status)status.textContent=error.message==='Upload unavailable on this device'?error.message:'Tap to open video';
