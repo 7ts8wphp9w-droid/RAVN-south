@@ -156,13 +156,13 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 }
 
 
-.repbook-social .vs-post-tools .rep-like {
-  display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;
+.repbook-social .vs-post-tools .rep-react {
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 4px;border:0;
   background:transparent;color:#e4d5eb;cursor:pointer;
 }
-.repbook-social .vs-post-tools .rep-like[aria-pressed=true] {color:#ff495d;background:transparent;border:0}
-.repbook-social .vs-post-tools .rep-like .rep-icon {width:24px;height:24px}
-.rep-like[aria-pressed=true] .rep-icon {fill:currentColor}
+.repbook-social .vs-post-tools .rep-react[aria-pressed=true] {color:#ff495d;background:transparent;border:0}
+.repbook-social .vs-post-tools .rep-react .rep-icon {width:24px;height:24px}
+.rep-react[aria-pressed=true] .rep-icon {fill:currentColor}
 .repbook-social .vs-stories .rep-own-story {
   position:relative;isolation:isolate;overflow:hidden;justify-content:flex-end;
   padding:10px 6px;border-radius:14px;height:136px;min-width:104px;
@@ -265,7 +265,7 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 #vs-dialog.story-player .vs-media {display:block;width:100%;height:auto;max-height:calc(82dvh - 64px);object-fit:contain;background:#090909}
 .story-player .story-tools,.story-player [data-comments] {padding:8px 16px}
 .story-player .story-tools {display:flex;align-items:center;gap:16px}
-.story-player .rep-like[aria-pressed=true] {color:#ff495d}
+.story-player .rep-react[aria-pressed=true] {color:#ff495d}
 .story-player [data-comments] li {overflow-wrap:anywhere}
 
 /* Photo/video editor and saved presentation. */
@@ -298,3 +298,5 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .page:has(.arena-collection-stats) .platinum-preview{max-width:220px}
 .page:has(.arena-collection-stats) .sectionhead h2{font-size:clamp(19px,4vw,24px)}
 @media(max-width:380px){.page:has(.arena-collection-stats) .trophy-tier-grid{grid-template-columns:1fr}.page:has(.arena-collection-stats) .tier-trophy{padding:12px}}
+
+.story-player .rep-react {display:inline-flex;align-items:center;gap:5px;min-height:44px}
