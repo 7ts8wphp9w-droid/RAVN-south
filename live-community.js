@@ -25,6 +25,7 @@ const community = (() => {
   }
   async function prepare(account){
     user=account;
+    await result(client.rpc('arena_record_visit'));
     const row=await result(client.from('vault_profiles').select('id').eq('id',identity()).maybeSingle());
     if(!row)await result(client.from('vault_profiles').upsert({id:user.id,display_name:String(user.user_metadata?.display_name||'Member').trim().slice(0,45)||'Member'},{onConflict:'id',ignoreDuplicates:true}));
   }
