@@ -12,7 +12,7 @@ function memberAchievements(includeInput=true) {
   <div class="arena-member-identity">${profile.picture}<div><h3>${esc(profile.name)}</h3><p>${esc(profile.bio || 'Every step counts. Keep building your consistency.')}</p></div></div>
   ${includeInput?'<input id="vs-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Choose profile picture">':''}
   <h3 class="arena-achievements-title">YOUR ACHIEVEMENTS</h3>
-  ${profileAwardBanner(profileAwardCounts())}${window.challengeBadgeSummary()}
+  ${profileAwardBanner(profileAwardCounts())}
   <a class="btn-outline" href="#/repbook/achievements">View achievements</a>
  </section>`;
 }
