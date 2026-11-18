@@ -354,11 +354,6 @@ h1,h2,h3,h4,.brand,.nr-kicker,.btn,.btn-outline,.btn-soft,.nav a{
 .hero-crop.hero-short>img{position:static;display:block;width:100%;height:auto;min-height:0;max-height:none;object-fit:contain;filter:none}
 @media(max-width:560px){.topinner{gap:10px;padding-inline:14px}.brand .brand-logo{width:140px}.home-hero-actions{padding-top:16px}}
 
-/* Public, same-origin journey artwork with readable mobile captions. */
-.image-tile.restored-journey{display:flex;flex-direction:column;background:#111018}
-.image-tile.restored-journey img{width:100%;height:260px;object-fit:cover;filter:none}
-.image-tile.restored-journey:nth-child(2) img{object-fit:contain;background:#081217}
-.restored-journey .journey-copy{padding:20px;flex:1}
-.restored-journey .journey-copy h3{font-size:23px;margin:0 0 8px}
-.restored-journey .journey-copy p{font-size:15px;line-height:1.5;margin:0 0 16px}
-.restored-journey .journey-copy span{font-size:14px;text-decoration:underline;text-underline-offset:4px}
+
+/* Preserve original card artwork without unsupported SVG filtering. */
+.image-tile.journey-tile img{filter:none}
