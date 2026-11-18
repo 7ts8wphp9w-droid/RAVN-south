@@ -310,3 +310,11 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 #vs-dialog.story-player.reel-player .rep-media-stage>.vs-media {position:absolute;inset:0;height:100%;width:100%;max-height:none;object-fit:contain}
 #vs-dialog.reel-player .vs-close {top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right))}
 #vs-dialog.reel-player>.story-tools {flex:none}
+
+.rep-trophy-page .profile-award-banner>.eyebrow,.rep-trophy-page .eyebrow {color:#dcbfe7}
+.rep-trophy-page :is(.profile-award-banner ul,.trophy-rules span,.tier-trophy,.platinum-trophy,.card) {background:#19151d;border-color:#4b3b52}
+.rep-trophy-page :is(.profile-award-name,.tier-trophy p,.mini,small) {color:#d4c7db}
+.rep-trophy-page :is(.trophy-rules strong,.profile-award-banner strong,.platinum-trophy .list-row strong) {color:#f4eaf9}
+.rep-trophy-page .award-status {color:#d3c4da;border-color:#56445e}
+.rep-trophy-page .award-status.earned {background:#39283f;color:#ecd9f6;border-color:#795988}
+.rep-trophy-page .tier-trophy progress {accent-color:#c6a4d4}
