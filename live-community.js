@@ -17,10 +17,10 @@ const community = (() => {
     }
   }
   async function snapshot(){
-    const [profiles,posts,likes,follows,comments,scores,own,months]=await Promise.all([
+    const [profiles,posts,likes,follows,comments,scores,own,months,results]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1))]);
-    return {profiles,posts,likes,follows,comments,scores,own,months};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id')]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results};
   }
   async function prepare(account){
     user=account;
@@ -44,6 +44,7 @@ const community = (() => {
     like:(id,set)=>toggle('vault_likes',{post_id:id,user_id:identity()},set),
     follow:(id,set)=>toggle('vault_follows',{followed_id:id,follower_id:identity()},set),
     comment:(id,body)=>result(client.from('vault_comments').insert({post_id:id,user_id:identity(),body})),
+    closeChallenge:id=>result(client.from('arena_challenge_results').insert({challenge_id:id})),
     checkin:(step,reflection)=>result(client.from('vault_checkins').insert({user_id:identity(),step,reflection}))
   };
 })();

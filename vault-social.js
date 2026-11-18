@@ -2,6 +2,7 @@
 (() => {
 'use strict';
 const editor=window.repMediaEditor;
+let results=new Map(),likeCounts=new Map();
 const DAY=86400000;
 let people=[], allFollows=[], ownBadges=[], scores=[], replyTo=null, profilePath=null, feedVersion=0;
 let data={bio:'',photo:'',following:[],likes:[],posts:[],stories:[],storyComments:{}};
@@ -23,6 +24,9 @@ window.loadCommunity=async()=>{
   .sort((a,b)=>b.at-a.at);
  data.posts=posts.filter(p=>p.type!=='story');data.stories=posts.filter(p=>p.type==='story');
  data.likes=live.likes.filter(l=>l.user_id===me).map(l=>l.post_id);
+ results=new Map(live.results.map(row=>[row.challenge_id,row]));
+ likeCounts=new Map();
+ for(const like of live.likes)likeCounts.set(like.post_id,(likeCounts.get(like.post_id)||0)+1);
  data.storyComments={};
  for(const c of live.comments)(data.storyComments[c.post_id]??=[]).push(c.body);
  allFollows=live.follows;data.following=allFollows.filter(f=>f.follower_id===me).map(f=>f.followed_id);
@@ -43,7 +47,20 @@ arenaTrophyData=()=>{
  }
  return calculateTrophies(awards,verifiedMonth);
 };
-achievements=()=>wrap('<h2>Your badges &amp; trophies</h2>'+profileAwardBanner(profileAwardCounts())+arenaTrophyCollection()+checkinForm());
+window.challengeBadgeSummary=(id=community.identity())=>{
+ const count=[...results.values()].filter(r=>r.winner_id===id).length;
+ return `<p class="arena-bronze-count"><span aria-hidden="true">🥉</span> Bronze challenge badges <strong>${count}</strong></p>`;
+};
+function challengeStatus(item){
+ const result=results.get(item.id);
+ if(result){
+  const winner=result.winner_id===community.identity()?s.name:member(result.winner_id).name;
+  return `<p><strong>🥉 ${esc(winner)} won a bronze badge</strong> · ${result.winning_likes} ${result.winning_likes===1?'like':'likes'} at close</p>`;
+ }
+ const close=item.author==='me'?`<button class="btn-outline" data-vs="close-challenge" data-id="${esc(item.id)}">Close voting and award badge</button>`:'';
+ return '<p>The entry with the most likes wins a bronze badge when the creator closes voting. A tie keeps voting open.</p>'+close;
+}
+achievements=()=>wrap('<h2>Your badges &amp; trophies</h2>'+profileAwardBanner(profileAwardCounts())+window.challengeBadgeSummary()+arenaTrophyCollection()+checkinForm());
 function checkinForm(){return `<form class="card" id="live-checkin"><h3>Record a daily step</h3><label class="field">Step<select name="step">${trophySteps.map(([,name])=>'<option>'+name+'</option>').join('')}</select></label><label class="field">What did you do today?<textarea name="reflection" minlength="10" maxlength="500" required></textarea></label><button class="btn">Save check-in</button><p role="status"></p></form>`}
 arenaLeaderboard=()=>{
  const totals=new Map();
@@ -90,8 +107,9 @@ function openMediaViewer(item, showComments=false){
  const comments=()=>data.storyComments?.[id]||[];
  const dialog=openDialog(`${media(item)||`<p>${esc(item.text||'')}</p>`}
   <p class="vs-post-text">${mentionText(item.text)}</p>${tagLinks(item)}
-  ${item.arenaMode&&!item.reply&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
-  ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name)).join(''):''}
+  ${item.arenaMode&&!item.reply?challengeStatus(item):''}
+  ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
+  ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+(likeCounts.get(x.id)||0)+' likes')).join(''):''}
   <div class="vs-post-tools story-tools">
    <button type="button" class="rep-like" data-vs="like" data-id="${esc(id)}" aria-label="Like ${type}" aria-pressed="${data.likes.includes(id)}">${icon('heart')}</button>
    <button type="button" class="btn-soft" data-comments-toggle aria-expanded="false">Comment</button>
@@ -148,7 +166,7 @@ window.ravnRepbookWrap=wrap;
 function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/leaderboard">${icon('trophy')} Leaderboard</a></aside></div>`)}
 function reels(){const items=data.posts.filter(x=>x.type==='reel');return wrap(`${storyStrip()}<div class="sectionhead"><div><h2>REELS</h2></div></div><div class="vs-reels">${items.length?items.map(post).join(''):''}</div>`)}
 function members(){return wrap(`<h2>FIND YOUR PEOPLE</h2><p>Follow other ravnsouth members.</p><div class="grid cols3">${people.map(p=>`<article class="card">${portrait(p.id,'vs-large')}<h3>${esc(p.name)}</h3><p>${esc(p.bio)}</p><a href="#/repbook/member/${p.id}" class="btn-outline">View profile</a></article>`).join('')}</div>`)}
-function profileView(id='me'){const own=id==='me',p=member(id);if(!own&&!people.some(x=>x.id===id))return wrap('<h2>Member not found</h2><a href="#/repbook/members">Browse members</a>');const posts=data.posts.filter(x=>x.author===id);return wrap(`${own?storyStrip():''}<div class="vs-profile-head card">${own?photoButton('vs-large'):portrait(id,'vs-large')}<div><div class="eyebrow">${own?'MY PROFILE':'MEMBER'}</div><h2>${esc(p.name)}</h2><p>${esc(p.bio||'A little about your journey belongs here.')}</p><div class="vs-counts"><span><strong>${posts.length}</strong> posts</span><span><strong>${allFollows.filter(f=>f.followed_id===(own?community.identity():id)).length}</strong> followers</span><span><strong>${allFollows.filter(f=>f.follower_id===(own?community.identity():id)).length}</strong> following</span></div></div>${!own?`<button class="btn" data-vs="follow" data-id="${id}" aria-pressed="${data.following.includes(id)}">${data.following.includes(id)?'Following':'Follow'}</button>`:''}</div>${own?`<div class="vs-layout"><form id="vs-profile" class="card"><h3>MAKE YOURSELF AT HOME</h3>${posts.some(item=>item.type==='reel')?'<button type="button" class="btn-outline" data-vs="manage-reels">Manage reels</button>':''}${activeStories().length?'<button type="button" class="btn-outline" data-vs="manage-stories">Manage stories</button>':''}<label class="field"><span>Display name</span><input name="displayName" maxlength="45" required minlength="2" value="${esc(s.name)}"></label><label class="field"><span>My Bio</span><textarea name="bio" maxlength="300" rows="3">${esc(data.bio)}</textarea></label><label class="field"><span>Profile visibility preference</span><select name="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members</option><option value="private" ${s.visibility==='private'?'selected':''}>Private</option></select></label><p class="mini">A private profile hides your name and bio from the member directory.</p><div class="vs-actions"><button class="btn" type="submit">Save profile</button><button class="btn-outline" type="button" data-logout>Log out</button>${profilePath?'<button class="btn-soft" type="button" data-vs="remove-photo">Remove photo</button>':''}</div><p id="vs-save-status" role="status"></p></form><aside><article class="card profile-progress-card"><h3>YOUR ACHIEVEMENTS</h3><p>${s.points} points · Level ${level()}</p><p>Earn badges through the Five Steps. 10 badges = Bronze, 50 = Silver, 100 = Gold.</p><p class="mini">Platinum: lead the leaderboard for a month and earn 10 Gold trophies in each step.</p><a class="btn-outline" href="#/repbook/achievements">View badges & trophies</a>${profileAwardBanner(profileAwardCounts())}</article></aside></div>`:''}<h2 class="vs-posts-title">${own?'MY POSTS':'POSTS'}</h2>${posts.length?posts.map(post).join(''):'<div class="card"><p>Your posts and reels will appear here.</p><button class="btn-outline" data-vs="create">Create a post</button></div>'}`)}
+function profileView(id='me'){const own=id==='me',p=member(id);if(!own&&!people.some(x=>x.id===id))return wrap('<h2>Member not found</h2><a href="#/repbook/members">Browse members</a>');const posts=data.posts.filter(x=>x.author===id);return wrap(`${own?storyStrip():''}<div class="vs-profile-head card">${own?photoButton('vs-large'):portrait(id,'vs-large')}<div><div class="eyebrow">${own?'MY PROFILE':'MEMBER'}</div><h2>${esc(p.name)}</h2><p>${esc(p.bio||'A little about your journey belongs here.')}</p><div class="vs-counts"><span><strong>${posts.length}</strong> posts</span><span><strong>${allFollows.filter(f=>f.followed_id===(own?community.identity():id)).length}</strong> followers</span><span><strong>${allFollows.filter(f=>f.follower_id===(own?community.identity():id)).length}</strong> following</span></div></div>${!own?`<button class="btn" data-vs="follow" data-id="${id}" aria-pressed="${data.following.includes(id)}">${data.following.includes(id)?'Following':'Follow'}</button>`:''}</div>${own?`<div class="vs-layout"><form id="vs-profile" class="card"><h3>MAKE YOURSELF AT HOME</h3>${posts.some(item=>item.type==='reel')?'<button type="button" class="btn-outline" data-vs="manage-reels">Manage reels</button>':''}${activeStories().length?'<button type="button" class="btn-outline" data-vs="manage-stories">Manage stories</button>':''}<label class="field"><span>Display name</span><input name="displayName" maxlength="45" required minlength="2" value="${esc(s.name)}"></label><label class="field"><span>My Bio</span><textarea name="bio" maxlength="300" rows="3">${esc(data.bio)}</textarea></label><label class="field"><span>Profile visibility preference</span><select name="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members</option><option value="private" ${s.visibility==='private'?'selected':''}>Private</option></select></label><p class="mini">A private profile hides your name and bio from the member directory.</p><div class="vs-actions"><button class="btn" type="submit">Save profile</button><button class="btn-outline" type="button" data-logout>Log out</button>${profilePath?'<button class="btn-soft" type="button" data-vs="remove-photo">Remove photo</button>':''}</div><p id="vs-save-status" role="status"></p></form><aside><article class="card profile-progress-card"><h3>YOUR ACHIEVEMENTS</h3><p>${s.points} points · Level ${level()}</p><p>Earn badges through the Five Steps. 10 badges = Bronze, 50 = Silver, 100 = Gold.</p><p class="mini">Platinum: lead the leaderboard for a month and earn 10 Gold trophies in each step.</p><a class="btn-outline" href="#/repbook/achievements">View badges & trophies</a>${profileAwardBanner(profileAwardCounts())}${window.challengeBadgeSummary()}</article></aside></div>`:''}<h2 class="vs-posts-title">${own?'MY POSTS':'POSTS'}</h2>${posts.length?posts.map(post).join(''):'<div class="card"><p>Your posts and reels will appear here.</p><button class="btn-outline" data-vs="create">Create a post</button></div>'}`)}
 const originalRender=render;
 vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
 render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=`<div class="wrap page-return"><a class="btn-outline" href="#/repbook">Back to Repbook</a></div>${custom}`;hydrate()};
@@ -384,10 +402,14 @@ document.addEventListener('click',async e=>{
    if(b.disabled)return;b.disabled=true;
    try{
     if(action==='follow'){await community.follow(id,data.following.includes(id));await refreshCommunity()}
-    else{const liked=data.likes.includes(id);await community.like(id,liked);data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id===id)el.setAttribute('aria-pressed',String(!liked))})}
+    else{const liked=data.likes.includes(id);await community.like(id,liked);likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id===id)el.setAttribute('aria-pressed',String(!liked))})}
    }finally{b.disabled=false}
   }else if(['story','friend-story','view-reel','comment-reel'].includes(action)){
    const item=[...data.posts,...data.stories].find(x=>x.id===id);if(item)openMediaViewer(item,action==='comment-reel');
+  }else if(action==='close-challenge'){
+   if(b.disabled||!confirm('Close voting now and award the leading entry a bronze badge?'))return;
+   b.disabled=true;
+   try{await community.closeChallenge(id);await refreshCommunity();const challenge=data.posts.find(x=>x.id===id);if(challenge)openMediaViewer(challenge)}finally{b.disabled=false}
   }else if(action==='respond'){
    const item=data.posts.find(x=>x.id===id);if(item){composer('reel',null,item.arenaMode);replyTo=id}
   }else if(['create','tag-post','add-media'].includes(action))composer(kind||'post',null,null,action==='tag-post');

@@ -12,13 +12,13 @@ function memberAchievements(includeInput=true) {
   <div class="arena-member-identity">${profile.picture}<div><h3>${esc(profile.name)}</h3><p>${esc(profile.bio || 'Every step counts. Keep building your consistency.')}</p></div></div>
   ${includeInput?'<input id="vs-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Choose profile picture">':''}
   <h3 class="arena-achievements-title">YOUR ACHIEVEMENTS</h3>
-  ${profileAwardBanner(profileAwardCounts())}
+  ${profileAwardBanner(profileAwardCounts())}${window.challengeBadgeSummary()}
   <a class="btn-outline" href="#/repbook/achievements">View achievements</a>
  </section>`;
 }
 window.repbookMemberSummary=()=>memberAchievements(false);
 window.repbookChallengeControls=()=>`<section class="repbook-challenges" aria-label="Repbook challenges"><div class="arena-upload-row">${circle('reel','Reel Challenge',play)}${window.ravnChallengePreviews('reel')}${circle('tag','Tag Challenge','@')}${window.ravnChallengePreviews('tag')}</div><div class="arena-links"><a href="#/repbook/leaderboard">Leaderboard</a><a href="#/repbook/achievements">Badges & trophies</a><a href="#/repbook/reels">Your reels</a></div></section>`;
-arena=()=>window.ravnRepbookWrap(`${window.repbookChallengeControls()}${memberAchievements(false)}<p class="mini arena-note">Open a challenge to watch or submit an entry.</p>`);
+arena=()=>window.ravnRepbookWrap(`${window.repbookChallengeControls()}${memberAchievements(false)}<p class="mini arena-note">The entry with the most likes wins a bronze badge. Open a challenge to enter or vote.</p>`);
 document.addEventListener('click',e=>{const button=e.target.closest('[data-arena-upload]');if(button)window.ravnArenaUpload(button.dataset.kind);});
 const previousRender=render;render=function(){const old=path();let next=old.replace(/^\/vault(?=\/|$)/,'/repbook').replace(/^\/arena$/,'/repbook/challenges').replace(/^\/arena\//,'/repbook/');if(next!==old)history.replaceState(history.state,'','#'+next);previousRender();document.body.classList.toggle('repbook-social',!!document.querySelector('.vs-shell'));document.body.classList.toggle('arena-active',path().startsWith('/repbook')||path()==='/profile');};
 })();
