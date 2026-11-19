@@ -77,7 +77,37 @@ const photoButton=(size='')=>`<button type="button" class="vs-photo-button ${siz
 const glyphs={activity:'<path d="M2 12h5l3-8 4 16 3-8h5"/>',place:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',feed:'<path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',reels:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 6 3-6 3Z M4 7h16 M8 3l3 4 M14 3l3 4"/>',challenge:'<path d="M2 9 6 5h12l4 4-4 4H6L2 9Z M2 9l2 8 4 3h8l4-3 2-8 M8 14l1 5 M16 14l-1 5 M7 9h10"/>',people:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/>',profile:'<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',plus:'<path d="M12 4v16 M4 12h16"/>',photo:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',tag:'<path d="M3 3h8l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1"/>',trophy:'<path d="M8 3h8v7a4 4 0 0 1-8 0Z M8 5H4v3a4 4 0 0 0 4 4 M16 5h4v3a4 4 0 0 1-4 4 M12 14v6 M7 21h10"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',trash:'<path d="M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7"/>',check:'<path d="m4 12 5 5L20 6"/>'};
 const icon=name=>`<svg class="rep-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name]||glyphs.plus}</svg>`;
 const navBar=()=>`<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','feed'],['/repbook/reels','Reels','reels'],['/repbook/challenges','Arena','challenge'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${path()===url||url==='/repbook'&&path()==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
-const intro=()=>`<header class="vs-heading rep-header"><a href="#/" class="rep-brand" aria-label="RAVN South home"><img src="./assets/ravn-angular-logo.png" alt="RAVN South"></a><h1>${path()==='/repbook/challenges'?'ARENA':'REPBOOK'}</h1><div class="rep-header-actions"><a class="rep-glass" href="#/repbook/members" aria-label="Find people">${icon('search')}</a><button class="rep-glass" data-vs="create" aria-label="Create a post">${icon('plus')}</button></div></header>${navBar()}`;
+function activityAlerts(){
+ const me=community.identity();
+ const follows=allFollows.filter(row=>row.followed_id===me&&row.follower_id!==me).map(row=>({
+  key:'follow/'+row.follower_id+'/'+(row.created_at||''),actor:row.follower_id,
+  message:'followed you',time:Date.parse(row.created_at)||0
+ }));
+ const tags=[...data.posts,...data.stories].filter(item=>item.author!=='me'&&item.tags.includes(me)).map(item=>({
+  key:'tag/'+item.id,actor:item.author,id:item.id,time:item.at,
+  message:item.arenaMode&&!item.reply?'challenged you in the Arena':'tagged you in a '+item.type
+ }));
+ return [...follows,...tags].sort((a,b)=>b.time-a.time);
+}
+function readAlertKeys(){
+ try{return new Set(JSON.parse(localStorage.getItem('repbook-alerts/'+community.identity())||'[]'))}catch{return new Set()}
+}
+function alertsButton(){
+ const read=readAlertKeys(),count=activityAlerts().filter(row=>!read.has(row.key)).length;
+ return `<button class="rep-glass" type="button" data-vs="alerts" aria-label="Notifications, ${count} unread"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 17h16l-2-3V9a6 6 0 0 0-12 0v5zM10 20a2 2 0 0 0 4 0"/></svg>${count?'<strong>'+count+'</strong>':''}</button>`;
+}
+function showAlerts(){
+ const rows=activityAlerts(),read=readAlertKeys();
+ const list=rows.map(row=>{
+  const label=esc(member(row.actor).name)+' '+esc(row.message)+(read.has(row.key)?'':' · New');
+  return row.id?`<p><button class="btn-outline" data-vs="view-reel" data-id="${esc(row.id)}">${label}</button></p>`:
+   `<p><a class="btn-outline" href="#/repbook/member/${esc(row.actor)}">${label}</a></p>`;
+ }).join('');
+ openDialog('<h2>Notifications</h2>'+(list||'<p>No notifications yet.</p>'),'Notifications');
+ try{localStorage.setItem('repbook-alerts/'+community.identity(),JSON.stringify(rows.map(row=>row.key)))}catch{}
+ document.querySelector('[data-vs="alerts"]').outerHTML=alertsButton();
+}
+const intro=()=>`<header class="vs-heading rep-header"><a href="#/" class="rep-brand" aria-label="RAVN South home"><img src="./assets/ravn-angular-logo.png" alt="RAVN South"></a><h1>${path()==='/repbook/challenges'?'ARENA':'REPBOOK'}</h1><div class="rep-header-actions">${alertsButton()}<a class="rep-glass" href="#/repbook/members" aria-label="Find people">${icon('search')}</a><button class="rep-glass" data-vs="create" aria-label="Create a post">${icon('plus')}</button></div></header>${navBar()}`;
 const wrap=body=>`<section class="section repbook-section"><div class="wrap vs-shell">${intro()}<input id="vs-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Choose profile picture">${body}</div></section>`;
 window.ravnArenaProfile = () => ({name:s.name,bio:data.bio,picture:photoButton('vs-large')});
 window.ravnArenaUpload = kind => composer('reel', null, kind);
@@ -596,6 +626,7 @@ document.addEventListener('submit',async event=>{
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-vs]');if(!b)return;const {vs:action,id,kind}=b.dataset;
  try{
+  if(action==='alerts'){showAlerts();return}
   if(action==='follow'||action==='like'){
    if(b.disabled)return;b.disabled=true;
    try{
@@ -670,7 +701,7 @@ document.addEventListener('click',async e=>{
 });
 let refreshing=false;
 async function updateFeed(){
- if(refreshing||document.hidden||!s.joined||!path().startsWith('/repbook')||document.querySelector('dialog[open],form :focus'))return;
+ if(refreshing||document.hidden||!s.joined||(!path().startsWith('/repbook')&&path()!=='/profile')||document.querySelector('dialog[open],form :focus'))return;
  refreshing=true;try{await window.loadCommunity();if(!document.querySelector('dialog[open],form :focus'))render()}catch{}finally{refreshing=false}
 }
 setInterval(updateFeed,60000);
