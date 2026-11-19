@@ -18,10 +18,11 @@ const community = (() => {
     }
   }
   async function snapshot(){
-    const [profiles,posts,likes,follows,comments,scores,own,months,results]=await Promise.all([
+    const day = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/London', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
+    const [profiles,posts,likes,follows,comments,scores,own,months,results,daily]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id')]);
-    return {profiles,posts,likes,follows,comments,scores,own,months,results};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),result(client.from('arena_badge_rolls').select('step,day').eq('user_id',identity()).eq('day',day).eq('source','login').eq('won',true).limit(1))]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results,daily:daily[0]};
   }
   async function prepare(account){
     user=account;
