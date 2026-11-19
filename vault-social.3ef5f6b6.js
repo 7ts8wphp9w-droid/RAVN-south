@@ -623,6 +623,27 @@ document.addEventListener('submit',async event=>{
   const status=form.querySelector('#vs-error,#vs-save-status,[role=status]');if(status?.isConnected)status.textContent=message;else toast(message);
  }finally{button.disabled=false}
 });
+let repAudioContext, repSoundBuffer;
+function prepareRepSound(){
+ try{
+  const AudioEngine=window.AudioContext||window.webkitAudioContext;
+  if(!AudioEngine)return;
+  repAudioContext ||= new AudioEngine();
+  const ready=repAudioContext.resume();
+  repSoundBuffer ||= fetch('./assets/rep-coins.wav').then(response=>{
+   if(!response.ok)throw Error('Sound unavailable');
+   return response.arrayBuffer();
+  }).then(bytes=>repAudioContext.decodeAudioData(bytes)).catch(()=>{repSoundBuffer=null;return null});
+  return Promise.all([ready,repSoundBuffer]).then(([,buffer])=>buffer).catch(()=>null);
+ }catch{return null}
+}
+function playRepSound(buffer){
+ if(!buffer)return;
+ const source=repAudioContext.createBufferSource();
+ source.buffer=buffer;
+ source.connect(repAudioContext.destination);
+ source.start();
+}
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-vs]');if(!b)return;const {vs:action,id,kind}=b.dataset;
  try{
@@ -631,7 +652,7 @@ document.addEventListener('click',async e=>{
    if(b.disabled)return;b.disabled=true;
    try{
     if(action==='follow'){await community.follow(id,data.following.includes(id));await refreshCommunity()}
-    else{const liked=data.likes.includes(id);await community.like(id,liked);likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
+    else{const liked=data.likes.includes(id);const sound=liked?null:prepareRepSound();await community.like(id,liked);if(sound)sound.then(playRepSound).catch(()=>{});likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
       if(!liked)ids.push('me');
       reactors.set(id,ids);updateFaces(document.querySelector('#vs-dialog'),id);
       data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id!==id)return;
