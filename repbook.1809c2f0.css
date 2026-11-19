@@ -343,3 +343,25 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
  .rep-viewer-details .vs-post-text{margin:4px 0}
  #vs-dialog.rep-video-screen .rep-volume{z-index:5}
 }
+
+/* Shared field colours for Repbook and Arena, including their media viewers. */
+:is(.arena-active, .repbook-social, .vs-dialog, .arena-dialog) :is(
+  textarea, select, input:not([type]), input[type="text"], input[type="search"],
+  input[type="email"], input[type="url"], input[type="number"], input[type="password"],
+  input[type="date"], input[type="datetime-local"], [contenteditable="true"]
+) {
+  color-scheme: dark;
+  background-color: #19131e;
+  border-color: #70577a;
+  color: #f4f0f6;
+  caret-color: #e4c2f3;
+}
+:is(.arena-active, .repbook-social, .vs-dialog, .arena-dialog) :is(input, textarea)::placeholder {
+  color: #bfaec6;
+  opacity: 1;
+}
+:is(.arena-active, .repbook-social, .vs-dialog, .arena-dialog) :is(input, textarea, select, [contenteditable="true"]):focus {
+  outline: 2px solid #d7afe8;
+  outline-offset: 2px;
+  border-color: #d7afe8;
+}
