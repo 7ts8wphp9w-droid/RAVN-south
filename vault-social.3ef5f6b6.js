@@ -10,7 +10,7 @@ let data={bio:'',photo:'',following:[],likes:[],posts:[],stories:[],storyComment
 const samples=[];
 const activeStories=()=>data.stories.filter(x=>x.author==='me' && Date.now()-x.at<DAY);
 const visibleFriendStories=()=>data.stories.filter(x=>data.following.includes(x.author)&&Date.now()-x.at<DAY);
-let tab='all',mediaUrls=new Map(),pending=null,cropImage=null,photoSource=null,uploadVersion=0,uploadChecking=false;
+let tab='all',mediaUrls=new Map(),pending=null,uploadVersion=0,uploadChecking=false;
 const uid=()=>crypto.randomUUID();
 window.loadCommunity=async()=>{
  const version=++feedVersion,me=community.identity(),live=await community.snapshot();
@@ -310,7 +310,7 @@ function profileView(id='me'){const own=id==='me',p=member(id);if(!own&&!people.
 const originalRender=render;
 vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
 render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=`<div class="wrap page-return"><a class="btn-outline" href="#/repbook">Back to Repbook</a></div>${custom}`;hydrate()};
-function openDialog(html,label){document.querySelector('#vs-dialog')?.remove();const d=document.createElement('dialog');d.id='vs-dialog';d.className='vs-dialog';d.setAttribute('aria-label',label);d.innerHTML=`<button class="vs-close" type="button" aria-label="Close" data-vs="close">×</button>${html}`;document.body.append(d);d.addEventListener('close',()=>{if(!document.querySelector('#vs-dialog')||document.querySelector('#vs-dialog')===d){pending=null;cropImage=null}d.remove()});d.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))d.close()});d.showModal();return d}
+function openDialog(html,label){document.querySelector('#vs-dialog')?.remove();const d=document.createElement('dialog');d.id='vs-dialog';d.className='vs-dialog';d.setAttribute('aria-label',label);d.innerHTML=`<button class="vs-close" type="button" aria-label="Close" data-vs="close">×</button>${html}`;document.body.append(d);d.addEventListener('close',()=>{if(!document.querySelector('#vs-dialog')||document.querySelector('#vs-dialog')===d){pending=null}d.remove()});d.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))d.close()});d.showModal();return d}
 const postColours=['Default','Plum','Slate','Midnight'];
 function postTools(existing){
  const activity=existing?.activity||'',place=existing?.place||'';
@@ -490,8 +490,57 @@ async function validateFile(file,kind='post') {
  return file;
 }
 
-function showPhotoCrop(img){photoSource=null;openDialog(`<h2>CROP YOUR PICTURE</h2><canvas id="vs-canvas" width="512" height="512" aria-label="Profile picture crop preview"></canvas><label class="field"><span>Zoom</span><input id="vs-zoom" type="range" min="1" max="3" step="0.05" value="1"></label><label class="field"><span>Horizontal position</span><input id="vs-x" type="range" min="0" max="100" value="50"></label><label class="field"><span>Vertical position</span><input id="vs-y" type="range" min="0" max="100" value="50"></label><button class="btn" data-vs="save-crop">Use this picture</button>`,'Crop profile picture');cropImage=img;cropDraw()}
-function cropDraw(){if(!cropImage)return;let c=document.getElementById('vs-canvas');if(!c)return;const z=Number(document.getElementById('vs-zoom').value),fx=Number(document.getElementById('vs-x').value)/100,fy=Number(document.getElementById('vs-y').value)/100;const side=Math.min(cropImage.width,cropImage.height)/z;c.getContext('2d').drawImage(cropImage,(cropImage.width-side)*fx,(cropImage.height-side)*fy,side,side,0,0,512,512)}
+function showPhotoCrop(img){
+ const dialog=openDialog('<h2>Crop your picture</h2><canvas id="vs-canvas" width="512" height="512" tabindex="0" aria-label="Profile picture crop. Use arrow keys to move and plus or minus to zoom."></canvas><p>Drag to move. Pinch to zoom.</p><button type="button" class="btn" data-vs="save-crop">Finish</button>','Crop profile picture');
+ const canvas=dialog.querySelector('canvas'),ctx=canvas.getContext('2d');
+ const size=Math.min(img.width,img.height),points=new Map();
+ let side=size,x=(img.width-size)/2,y=(img.height-size)/2;
+ const clamp=(value,max)=>Math.max(0,Math.min(value,max));
+ function draw(){
+  x=clamp(x,img.width-side);y=clamp(y,img.height-side);
+  ctx.drawImage(img,x,y,side,side,0,0,canvas.width,canvas.height);
+ }
+ function position(event){
+  const box=canvas.getBoundingClientRect();
+  return {x:(event.clientX-box.left)/box.width,y:(event.clientY-box.top)/box.height};
+ }
+ function gesture(){
+  const [a,b]=points.values();
+  if(!b)return {...a,distance:0};
+  return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,distance:Math.hypot(a.x-b.x,a.y-b.y)};
+ }
+ function transform(from,to,scale){
+  const next=Math.max(size/3,Math.min(size,side*scale));
+  x+=from.x*side-to.x*next;y+=from.y*side-to.y*next;
+  side=next;draw();
+ }
+ canvas.onpointerdown=e=>{
+  if(e.button!==0||points.size>=2)return;
+  canvas.setPointerCapture(e.pointerId);points.set(e.pointerId,position(e));
+ };
+ canvas.onpointermove=e=>{
+  if(!points.has(e.pointerId))return;
+  const before=gesture();points.set(e.pointerId,position(e));const after=gesture();
+  transform(before,after,before.distance&&after.distance?before.distance/after.distance:1);
+ };
+ canvas.onlostpointercapture=canvas.onpointerup=canvas.onpointercancel=e=>points.delete(e.pointerId);
+ const centre={x:0.5,y:0.5};
+ canvas.onwheel=e=>{e.preventDefault();const at=position(e);transform(at,at,e.deltaY>0?1.1:1/1.1)};
+ canvas.onkeydown=e=>{
+  const step=side/30;
+  switch(e.key){
+   case 'ArrowLeft':x+=step;break;
+   case 'ArrowRight':x-=step;break;
+   case 'ArrowUp':y+=step;break;
+   case 'ArrowDown':y-=step;break;
+   case '+':case '=':transform(centre,centre,1/1.1);break;
+   case '-':transform(centre,centre,1.1);break;
+   default:return;
+  }
+  e.preventDefault();draw();
+ };
+ draw();
+}
 document.addEventListener('change',async e=>{if(e.target.id==='vs-kind'){const dialog=e.target.closest('dialog');const title='Create '+e.target.value;dialog.querySelector('h2').textContent=title;dialog.setAttribute('aria-label',title)}if(e.target.id==='vs-upload'){
 const version=++uploadVersion;pending=null;uploadChecking=true;
 const input=e.target,error=document.getElementById('vs-error'),preview=document.getElementById('vs-media-preview'),form=input.closest('form'),button=form.querySelector('[type=submit]');
@@ -503,8 +552,8 @@ el.src=url;el.className='vs-upload-preview';if(el.tagName==='VIDEO'){el.controls
 document.getElementById('vs-dialog').addEventListener('close',()=>URL.revokeObjectURL(url),{once:true});
 }catch(err){if(version===uploadVersion&&input.isConnected)error.textContent=err.message}
 finally{if(version===uploadVersion){uploadChecking=false;if(button.isConnected)button.disabled=false}}
-}if(e.target.id==='vs-photo'){const file=e.target.files[0];if(!file)return;try{if(!file.type.startsWith('image/'))throw Error('Choose a JPG, PNG or WebP photo.');await validateFile(file);const url=URL.createObjectURL(file),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});URL.revokeObjectURL(url);showPhotoCrop(img);photoSource=file}catch(err){toast(err.message||'Could not open that picture.')}}});
-document.addEventListener('input',e=>{if(['vs-zoom','vs-x','vs-y'].includes(e.target.id))cropDraw()});
+}if(e.target.id==='vs-photo'){const file=e.target.files[0];if(!file)return;try{if(!file.type.startsWith('image/'))throw Error('Choose a JPG, PNG or WebP photo.');await validateFile(file);const url=URL.createObjectURL(file),img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url});URL.revokeObjectURL(url);showPhotoCrop(img)}catch(err){toast(err.message||'Could not open that picture.')}}});
+
 async function refreshCommunity(){await window.loadCommunity();render()}
 document.addEventListener('submit',async event=>{
  const form=event.target;
