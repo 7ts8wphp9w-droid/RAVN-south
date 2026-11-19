@@ -180,6 +180,7 @@ function updateFaces(dialog,id){
  lane.onanimationend=next;
  next();
 }
+let viewerMuted=null;
 function installPlayback(dialog,item,video,panel){
  const stories=[...activeStories(),...visibleFriendStories()];
  const items=item.type==='story'?stories:data.posts.filter(x=>x.type==='reel'&&x.arenaMode===item.arenaMode);
@@ -196,8 +197,46 @@ function installPlayback(dialog,item,video,panel){
  lane.className='rep-faces';lane.dataset.id=item.id;
  (dialog.querySelector('.rep-media-stage')||dialog).append(lane);
  updateFaces(dialog,item.id);
- const close=dialog.querySelector('.vs-close');
- close.textContent='Back';close.classList.add('rep-key-back');
+ dialog.querySelector('.vs-close').remove();
+ if(video){
+  video.controls=false;
+  video.muted=viewerMuted??video.muted;
+  const stage=video.parentElement;
+  const mute=document.createElement('button');
+  mute.type='button';
+  mute.className='rep-volume';
+  const speaker='<path d="M3 9h4l5-4v14l-5-4H3z"/>';
+  function syncVolume(){
+   const label=video.muted?'Unmute video':'Mute video';
+   mute.setAttribute('aria-label',label);
+   mute.title=label;
+   const sound=video.muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>';
+   mute.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'+speaker+sound+'</svg>';
+  }
+  mute.onclick=()=>{
+   viewerMuted=video.muted=!video.muted;
+   syncVolume();
+   if(video.paused)video.play().catch(()=>{});
+  };
+  video.onvolumechange=syncVolume;
+  video.onclick=()=>video.paused?video.play().catch(()=>{}):video.pause();
+  video.onloadedmetadata=()=>{
+   video.play().catch(error=>{
+    if(error.name==='NotAllowedError'&&!video.muted&&dialog.isConnected){
+     video.muted=true;syncVolume();video.play().catch(()=>{});
+    }
+   });
+  };
+  stage.append(mute);syncVolume();
+  dialog.classList.add('rep-video-screen');
+  const details=document.createElement('div');
+  details.className='rep-viewer-details';
+  for(const child of [...dialog.children]){
+   if(child!==stage&&child!==timeline)details.append(child);
+  }
+  dialog.append(details);
+  if(matchMedia("(max-width:900px), (max-height:550px) and (pointer:coarse)").matches)dialog.append(mute);
+ }
  function move(step){
   if(queue.length===1){if(video){video.currentTime=0;video.play().catch(()=>{})}return}
   openMediaViewer(queue[(index+step+queue.length)%queue.length]);

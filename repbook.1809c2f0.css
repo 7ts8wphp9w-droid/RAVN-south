@@ -332,3 +332,14 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
 .rep-faces .vs-avatar{width:42px;height:42px;border:2px solid #dfb9f2}
 @keyframes rep-rise{0%{transform:translateY(0);opacity:0}12%,80%{opacity:1}100%{transform:translateY(-18vh);opacity:0}}
 @media(prefers-reduced-motion:reduce){.rep-faces a{animation-name:rep-still}@keyframes rep-still{from{opacity:1}to{opacity:1}}}
+.rep-volume{position:absolute;z-index:5;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));width:46px;height:46px;border:1px solid #ffffff66;border-radius:50%;display:grid;place-items:center;background:#161119d9;color:white}
+.rep-volume svg{width:22px;height:22px}
+@media(max-width:900px),(max-height:550px) and (pointer:coarse){
+ #vs-dialog.rep-video-screen[open]{padding:0;overflow:hidden}
+ #vs-dialog.rep-video-screen>.rep-media-stage{position:absolute;inset:0;width:100%;height:100%}
+ #vs-dialog.rep-video-screen .rep-media-stage>video.vs-media{object-fit:cover;margin:0}
+ .rep-viewer-details{position:absolute;inset:auto 0 0;z-index:2;max-height:42%;overflow:auto;padding:22px 68px max(8px,env(safe-area-inset-bottom)) 12px;background:linear-gradient(transparent,#000b);pointer-events:none}
+ .rep-viewer-details>*{pointer-events:auto}
+ .rep-viewer-details .vs-post-text{margin:4px 0}
+ #vs-dialog.rep-video-screen .rep-volume{z-index:5}
+}
