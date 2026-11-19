@@ -51,6 +51,10 @@ const celebrations = (() => {
   try { if (community.identity() !== memberId) return; } catch { return; }
   const key = Object.keys(counts).find(k => counts[k] > (seen[k] || 0));
   if (!key) return;
+  reveal(key, false);
+ }
+ function reveal(key, preview) {
+  if (active) return;
   const [element,tier] = key.split('/');
   const name = trophySteps.find(([id]) => id === element)[1];
   const title = tier === 'platinum' ? 'Five-Step Platinum trophy' : name + ' ' + (tier === 'badges' ? 'badge' : tier + ' trophy');
@@ -87,12 +91,26 @@ const celebrations = (() => {
    const distance = dialog.querySelector(':scope > span').getBoundingClientRect().top - badge.getBoundingClientRect().top - badge.offsetHeight/2;
    if (!reduced) await badge.animate([{transform:'scale(1)'},{transform:'scale(.93)',offset:.16},{transform:'translateY('+distance+'px) scale(.08)'}],{duration:770,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{});
    if (active?.dialog !== dialog) return;
+   if (preview) { close(); show(); return; }
    seen[key] = (seen[key] || 0) + 1;
    if (dailyReward?.key === key && seen[key] >= counts[key]) seen.dailyCollected = dailyReward.day;
    save(); close(); show();
   };
   button.onclick = collect;
   dialog.oncancel = event => {event.preventDefault();collect();};
+ }
+ if (new URLSearchParams(location.search).get('preview') === 'badge') {
+  const test = document.createElement('button');
+  test.type = 'button';
+  test.textContent = 'Play badge test';
+  test.style.cssText = 'position:fixed;bottom:max(6rem,15vh);left:50%;transform:translateX(-50%);z-index:2147483647;border:1px solid #c4a1d2;background:#251d2b;color:white;padding:14px 22px;border-radius:24px';
+  test.onclick = async () => {
+   unlockSound();
+   if (audioContext?.state === 'suspended') await audioContext.resume().catch(()=>{});
+   const step = trophySteps[Math.floor(Math.random()*trophySteps.length)];
+   reveal(step[0]+'/badges',true);
+  };
+  document.body.append(test);
  }
  addEventListener('hashchange',show);
  return {update(id,data,daily) {
