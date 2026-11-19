@@ -275,7 +275,7 @@ window.ravnChallengePreviews=mode=>{
 };
 function storyStrip(){const own=activeStories(),friends=visibleFriendStories();return `<div data-story-rows><section class="vs-stories" aria-label="Posts and reels"><button type="button" class="vs-story" data-vs="create" aria-label="Create a post"><span class="vs-story-ring">${icon('plus')}</span><strong>Post</strong></button>${reelCircle()}</section><section class="vs-stories" aria-label="Stories">${stackTiles(own,'Your story')}<button type="button" class="vs-story" data-vs="add-media" data-kind="story" aria-label="Add your story"><span class="vs-story-ring">${icon('plus')}</span><strong>${own.length?'Add story':'Your story'}</strong><small>Tap to add</small></button>${stackTiles(friends,'Your story')}<p>${friends.length?'Stories from people you follow.':'Friends’ stories appear here when you follow them.'}<br><small>Stories last 24 hours. </small></p></section></div>`}
 function manageMedia(kind){const items=kind==='story'?activeStories():data.posts.filter(x=>x.type==='reel'&&x.author==='me');if(!items.length){composer(kind);return}mediaActions(items[0])}
-function openMediaViewer(item, showComments=false){
+function openMediaViewer(item, showComments=false, feedItems=null){
  const {id,type}=item;
  const comments=()=>data.storyComments?.[id]||[];
  const dialog=openDialog(`${media(item)||`<p>${esc(item.text||'')}</p>`}
@@ -301,7 +301,7 @@ function openMediaViewer(item, showComments=false){
  comments().forEach(showComment);
  const toggle=dialog.querySelector('[data-comments-toggle]');
  toggle.onclick=()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)panel.querySelector('input').focus()};
- installPlayback(dialog,item,video,panel);
+ installPlayback(dialog,item,video,panel,feedItems);
  if(showComments)toggle.click();
  panel.querySelector('form').onsubmit=async event=>{
   event.preventDefault();
@@ -333,9 +333,9 @@ function updateFaces(dialog,id){
  next();
 }
 let viewerMuted=null;
-function installPlayback(dialog,item,video,panel){
+function installPlayback(dialog,item,video,panel,feedItems){
  const stories=[...activeStories(),...visibleFriendStories()];
- const items=item.type==='story'?stories:data.posts.filter(x=>x.type==='reel'&&x.arenaMode===item.arenaMode);
+ const items=feedItems||(item.type==='story'?stories:data.posts.filter(x=>x.type==='reel'&&x.arenaMode===item.arenaMode));
  const groups=authorGroups(items.some(x=>x.id===item.id)?items:[item]);
  const queue=groups.flat(),index=queue.findIndex(x=>x.id===item.id);
  const group=groups.find(g=>g.some(x=>x.id===item.id));
@@ -391,7 +391,7 @@ function installPlayback(dialog,item,video,panel){
  }
  function move(step){
   if(queue.length===1){if(video){video.currentTime=0;video.play().catch(()=>{})}return}
-  openMediaViewer(queue[(index+step+queue.length)%queue.length]);
+  openMediaViewer(queue[(index+step+queue.length)%queue.length],false,feedItems);
  }
  dialog.onkeydown=e=>{
   if(e.target.matches('input,textarea,select'))return;
@@ -445,8 +445,13 @@ function tagLinks(item){const ids=cleanTags(item.tags);return ids.length?`<p cla
 function tagPicker(item){const ids=cleanTags(item?.tags);return `<fieldset class="vs-tag-picker"><legend>Tag people</legend><label class="rep-mention-search">Search members<input type="search" data-mention-search placeholder="Name or @username" autocomplete="off"></label><p data-no-mentions hidden>No matching members.</p><p class="mini">Choose members to tag. </p>${people.map(p=>`<label data-member-option="${p.id}"><input type="checkbox" name="taggedMember" value="${p.id}" ${ids.includes(p.id)?'checked':''}><span>${esc(p.name)}</span></label>`).join('')}</fieldset>`}
 
 function media(x){if(!x.media)return '';return editor.wrap(isVideoMedia(x)?`<video class="vs-media" data-media="${esc(x.media)}" controls playsinline preload="metadata" aria-label="Video by ${esc(member(x.author)?.name||s.name)}"></video>`:`<img class="vs-media" data-media="${esc(x.media)}" alt="${esc(x.text||'Member photo')}">`,x.effects)}
+function feedMedia(item){
+ if(!item.media || !isVideoMedia(item))return media(item);
+ const preview=editor.wrap(`<video class="vs-media" data-media="${esc(item.media)}" data-reel-preview muted playsinline loop preload="metadata"></video>`,item.effects);
+ return `<button type="button" style="display:block;width:100%;padding:0;border:0;background:transparent" data-vs="feed-video" data-id="${esc(item.id)}" aria-label="Open video by ${esc(member(item.author)?.name||s.name)}">${preview}</button>`;
+}
 function postRepCount(id){return '<span data-rep-count aria-live="polite">'+repTotal(likeCounts.get(id)||0)+'</span>'}
-function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${media(x)}<div class="vs-post-tools"><button class="rep-react" aria-label="Rep this post" data-vs="like" data-id="${x.id}" aria-pressed="${liked}">${repDumbbell()}${postRepCount(x.id)}</button><button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
+function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools"><button class="rep-react" aria-label="Rep this post" data-vs="like" data-id="${x.id}" aria-pressed="${liked}">${repDumbbell()}${postRepCount(x.id)}</button><button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
 function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/leaderboard">${icon('trophy')} Leaderboard</a></aside></div>`)}
@@ -782,8 +787,8 @@ document.addEventListener('click',async e=>{
       const count=el.querySelector('[data-rep-count]');
       if(count)count.textContent=repTotal(likeCounts.get(id));})}
    }finally{b.disabled=false}
-  }else if(['story','friend-story','view-reel','comment-reel'].includes(action)){
-   const item=[...data.posts,...data.stories].find(x=>x.id===id);if(item)openMediaViewer(item,action==='comment-reel');
+  }else if(['story','friend-story','view-reel','comment-reel','feed-video'].includes(action)){
+   const item=[...data.posts,...data.stories].find(x=>x.id===id);if(item)openMediaViewer(item,action==='comment-reel',action==='feed-video'?data.posts.filter(x=>x.media&&isVideoMedia(x)&&(tab!=='following'||data.following.includes(x.author))):null);
   }else if(action==='close-challenge'){
    if(b.disabled||!confirm('Close this challenge now and award the leading entry a bronze badge?'))return;
    b.disabled=true;
