@@ -2,7 +2,7 @@ const recoveryRedirect = new URLSearchParams(location.hash.slice(1)).get('type')
 const community = (() => {
   const client = window.supabase.createClient('https://boalacuzelujpifbbptm.supabase.co','sb_publishable_WkJOLNBIHKTrU7Jyr1aLvg_tIt1JVtI');
   const bucket = client.storage.from('vault-media');
-  let user = null;
+  let user = null, ownerOverview = null;
   async function result(request) {
     const {data,error}=await request;
     if(error) throw new Error(error.message);
@@ -25,6 +25,10 @@ const community = (() => {
   }
   async function prepare(account){
     user=account;
+    ownerOverview=null;
+    const overview=await result(client.rpc('ravn_owner_overview'));
+    if(user?.id!==account.id)return;
+    ownerOverview=overview;
     await result(client.rpc('arena_record_visit'));
     const row=await result(client.from('vault_profiles').select('id').eq('id',identity()).maybeSingle());
     if(!row)await result(client.from('vault_profiles').upsert({id:user.id,display_name:String(user.user_metadata?.display_name||'Member').trim().slice(0,45)||'Member'},{onConflict:'id',ignoreDuplicates:true}));
@@ -37,7 +41,7 @@ const community = (() => {
   async function toggle(table,keys,currentlySet){
     await result(currentlySet?client.from(table).delete().match(keys):client.from(table).upsert(keys,{ignoreDuplicates:true}));
   }
-  return {client,identity,prepare,snapshot,upload,clear(){user=null},
+  return {client,identity,prepare,snapshot,upload,ownerOverview:()=>ownerOverview,clear(){user=null;ownerOverview=null},
     signed:async key=>(await result(bucket.createSignedUrl(key,3600))).signedUrl,
     removeFile:key=>result(bucket.remove([key])),
     profile:fields=>result(client.from('vault_profiles').update(fields).eq('id',identity())),

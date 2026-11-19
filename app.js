@@ -172,7 +172,7 @@ if(action==='contact'){let name=v('contactName').trim(),mail=v('contactEmail').t
 document.addEventListener('input',e=>{if(e.target.dataset.fFilter==='search')fFilterChange(e.target)});
 document.addEventListener('change',e=>{
  if(e.target.dataset.fFilter&&e.target.dataset.fFilter!=='search'){fFilterChange(e.target);return}
- if(e.target.matches('.f-exercise-check')){let el=e.target;const plan=fitnessPrograms.find(x=>x.id===el.dataset.program);if(!plan||!programmeAllowed(plan.level)||(plan.level==='Advanced'&&(s.fitnessSessions?.length||0)<8))return;let key=today()+'|'+el.dataset.program,idx=Number(el.dataset.index);s.fitnessExercises=s.fitnessExercises||{};let arr=s.fitnessExercises[key]||[];s.fitnessExercises[key]=el.checked?[...new Set([...arr,idx])]:arr.filter(x=>x!==idx);save();return}
+ if(e.target.matches('.f-exercise-check')){let el=e.target;const plan=fitnessPrograms.find(x=>x.id===el.dataset.program);if(!plan||!programmeAllowed(plan.level)||(advancedTrainingLocked(plan)))return;let key=today()+'|'+el.dataset.program,idx=Number(el.dataset.index);s.fitnessExercises=s.fitnessExercises||{};let arr=s.fitnessExercises[key]||[];s.fitnessExercises[key]=el.checked?[...new Set([...arr,idx])]:arr.filter(x=>x!==idx);save();return}
 });
 document.addEventListener('change',e=>{if(e.target.matches('.mealcheck')){let k=today()+'-'+e.target.dataset.meal;s.nutrition=e.target.checked?[...new Set([...s.nutrition,k])]:s.nutrition.filter(v=>v!==k);save();toast('Meal planner updated')}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='coachInput'){e.preventDefault();$('[data-action="coach"]')?.click()}if(e.key==='Enter'&&e.target.id==='messageText'){e.preventDefault();$('[data-action="message"]')?.click()}});
