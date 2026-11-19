@@ -2,6 +2,7 @@
 (() => {
 'use strict';
 const editor=window.repMediaEditor;
+let reactors=new Map();
 let results=new Map(),likeCounts=new Map();
 const DAY=86400000;
 let people=[], allFollows=[], ownBadges=[], scores=[], replyTo=null, profilePath=null, feedVersion=0;
@@ -26,7 +27,14 @@ window.loadCommunity=async()=>{
  data.likes=live.likes.filter(l=>l.user_id===me).map(l=>l.post_id);
  results=new Map(live.results.map(row=>[row.challenge_id,row]));
  likeCounts=new Map();
- for(const like of live.likes)likeCounts.set(like.post_id,(likeCounts.get(like.post_id)||0)+1);
+
+ reactors=new Map();
+ for(const like of live.likes){
+  const ids=reactors.get(like.post_id)||[];
+  ids.push(like.user_id===me?'me':like.user_id);
+  reactors.set(like.post_id,ids);
+  likeCounts.set(like.post_id,ids.length);
+ }
  data.storyComments={};
  for(const c of live.comments)(data.storyComments[c.post_id]??=[]).push(c.body);
  allFollows=live.follows;data.following=allFollows.filter(f=>f.follower_id===me).map(f=>f.followed_id);
@@ -65,7 +73,7 @@ arenaLeaderboard=()=>{
  const entries=[...totals].filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
  return wrap('<h2>Monthly leaderboard</h2>'+ (entries.length?'<ol>'+entries.map(([id,n])=>'<li>'+esc(id===community.identity()?s.name:member(id).name)+' · '+n+' badges</li>').join('')+'</ol>':'<p>No badges earned yet this month.</p>')+checkinForm());
 };
-const photoButton=(size='')=>`<button type="button" class="vs-photo-button ${size}" data-vs="edit-photo" aria-label="${data.photo?'Edit profile picture':'Add profile picture'}" title="${data.photo?'Edit profile picture':'Add profile picture'}">${portrait('me',size)}<span class="vs-photo-edit" aria-hidden="true">${data.photo?'Edit':'+'}</span></button>`;
+const photoButton=(size='')=>`<button type="button" class="vs-photo-button ${size}" data-vs="edit-profile" aria-label="Edit profile" title="Edit profile">${portrait('me',size)}<span class="vs-photo-edit" aria-hidden="true">+</span></button>`;
 const glyphs={activity:'<path d="M2 12h5l3-8 4 16 3-8h5"/>',place:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',feed:'<path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',reels:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 6 3-6 3Z M4 7h16 M8 3l3 4 M14 3l3 4"/>',challenge:'<path d="M2 9 6 5h12l4 4-4 4H6L2 9Z M2 9l2 8 4 3h8l4-3 2-8 M8 14l1 5 M16 14l-1 5 M7 9h10"/>',people:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/>',profile:'<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',plus:'<path d="M12 4v16 M4 12h16"/>',photo:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',tag:'<path d="M3 3h8l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1"/>',trophy:'<path d="M8 3h8v7a4 4 0 0 1-8 0Z M8 5H4v3a4 4 0 0 0 4 4 M16 5h4v3a4 4 0 0 1-4 4 M12 14v6 M7 21h10"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',trash:'<path d="M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7"/>',check:'<path d="m4 12 5 5L20 6"/>'};
 const icon=name=>`<svg class="rep-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name]||glyphs.plus}</svg>`;
 const navBar=()=>`<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','feed'],['/repbook/reels','Reels','reels'],['/repbook/challenges','Arena','challenge'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${path()===url||url==='/repbook'&&path()==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
@@ -88,9 +96,23 @@ function previewTile(item,label) {
  return `<button type="button" class="vs-story rep-own-story rep-media-stage" data-effect-filter="${editor.clean(item.effects).filter}" data-vs="${item.type==='story'?'story':'view-reel'}" data-kind="${item.type}" data-id="${esc(item.id)}" aria-label="Open ${esc(label)}">
   ${cover}${editor.overlay(item.effects)}<strong>${esc(label)}</strong>${item.media?'':`<small>${esc(item.text)}</small>`}</button>`;
 }
+function authorGroups(items){
+ const groups=new Map();
+ for(const item of items){
+  if(!groups.has(item.author))groups.set(item.author,[]);
+  groups.get(item.author).push(item);
+ }
+ return [...groups.values()].map(group=>group.sort((a,b)=>a.at-b.at));
+}
+function stackTiles(items,ownLabel){
+ return authorGroups(items).map(group=>{
+  const first=group[0],label=first.author==='me'?ownLabel:member(first.author).name;
+  return previewTile(first,label+(group.length>1?' · '+group.length:''));
+ }).join('');
+}
 function reelCircle(){
  const reels=data.posts.filter(x=>x.type==='reel' && !x.arenaMode);
- if(reels.length)return reels.map(x=>previewTile(x,x.author==='me'?'Your reel':member(x.author).name)).join('');
+ if(reels.length)return stackTiles(reels,'Your reel');
  return `<button type="button" class="vs-story" data-vs="add-media" data-kind="reel" aria-label="Add a reel"><span class="vs-story-ring vs-reel-ring" aria-hidden="true">${icon('reels')}</span><strong>Your reels</strong><small>Tap to add</small></button>`;
 }
 window.ravnChallengePreviews=mode=>{
@@ -99,7 +121,7 @@ window.ravnChallengePreviews=mode=>{
  const label=mode==='tag'?'Tag challenge':'Reel challenge';
  return `<div class="vs-stories rep-challenge-previews" aria-label="${label} videos">${items.map(x=>previewTile(x,label)).join('')}</div>`;
 };
-function storyStrip(){const own=activeStories(),friends=visibleFriendStories();return `<div data-story-rows><section class="vs-stories" aria-label="Posts and reels"><button type="button" class="vs-story" data-vs="create" aria-label="Create a post"><span class="vs-story-ring">${icon('plus')}</span><strong>Post</strong></button>${reelCircle()}</section><section class="vs-stories" aria-label="Stories">${own.map(x=>previewTile(x,'Your story')).join('')}<button type="button" class="vs-story" data-vs="add-media" data-kind="story" aria-label="Add your story"><span class="vs-story-ring">${icon('plus')}</span><strong>${own.length?'Add story':'Your story'}</strong><small>Tap to add</small></button>${friends.map(x=>previewTile(x,member(x.author).name)).join('')}<p>${friends.length?'Stories from people you follow.':'Friends’ stories appear here when you follow them.'}<br><small>Stories last 24 hours. </small></p></section></div>`}
+function storyStrip(){const own=activeStories(),friends=visibleFriendStories();return `<div data-story-rows><section class="vs-stories" aria-label="Posts and reels"><button type="button" class="vs-story" data-vs="create" aria-label="Create a post"><span class="vs-story-ring">${icon('plus')}</span><strong>Post</strong></button>${reelCircle()}</section><section class="vs-stories" aria-label="Stories">${stackTiles(own,'Your story')}<button type="button" class="vs-story" data-vs="add-media" data-kind="story" aria-label="Add your story"><span class="vs-story-ring">${icon('plus')}</span><strong>${own.length?'Add story':'Your story'}</strong><small>Tap to add</small></button>${stackTiles(friends,'Your story')}<p>${friends.length?'Stories from people you follow.':'Friends’ stories appear here when you follow them.'}<br><small>Stories last 24 hours. </small></p></section></div>`}
 function manageMedia(kind){const items=kind==='story'?activeStories():data.posts.filter(x=>x.type==='reel'&&x.author==='me');if(!items.length){composer(kind);return}mediaActions(items[0])}
 function openMediaViewer(item, showComments=false){
  const {id,type}=item;
@@ -110,16 +132,16 @@ function openMediaViewer(item, showComments=false){
   ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
   <div class="vs-post-tools story-tools">
-   <button type="button" class="rep-react" data-vs="like" data-id="${esc(id)}" aria-label="Rep this ${esc(type)}" aria-pressed="${data.likes.includes(id)}">${repDumbbell()}${type!=='story'?postRepCount(id):'<span>Rep</span>'}</button>
+   <button type="button" class="rep-react" data-vs="like" data-id="${esc(id)}" aria-label="Rep this ${esc(type)}" aria-pressed="${data.likes.includes(id)}">${repDumbbell()}${postRepCount(id)}</button>
    <button type="button" class="btn-soft" data-comments-toggle aria-expanded="false">Comment</button>
   </div>
   <div data-comments hidden><ul aria-label="${type} comments"></ul>
    <form><label>Comment<input name="comment" required maxlength="500" autocomplete="off"></label><button class="btn-soft">Post comment</button></form>
   </div>`,'View '+type);
  dialog.classList.add('story-player');
- if(type==='reel')dialog.classList.add('reel-player');
+ dialog.classList.add('reel-player');
  const video=dialog.querySelector('video');
- if(video){video.muted=type!=='reel';video.autoplay=true;video.loop=type==='reel'}
+ if(video){video.muted=type!=='reel';video.autoplay=true;video.loop=false}
  hydrate();
  const panel=dialog.querySelector('[data-comments]');
  const list=panel.querySelector('ul');
@@ -127,6 +149,7 @@ function openMediaViewer(item, showComments=false){
  comments().forEach(showComment);
  const toggle=dialog.querySelector('[data-comments-toggle]');
  toggle.onclick=()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)panel.querySelector('input').focus()};
+ installPlayback(dialog,item,video,panel);
  if(showComments)toggle.click();
  panel.querySelector('form').onsubmit=async event=>{
   event.preventDefault();
@@ -137,6 +160,77 @@ function openMediaViewer(item, showComments=false){
   catch(e){toast(e.message);return}finally{send.disabled=false}
   showComment(text);input.value='';
  };
+}
+function updateFaces(dialog,id){
+ const lane=dialog?.querySelector('.rep-faces');
+ if(!lane||lane.dataset.id!==id)return;
+ const ids=reactors.get(id)||[];
+ let index=0;
+ function next(){
+  lane.replaceChildren();
+  if(!ids.length)return;
+  const person=ids[index++ % ids.length],link=document.createElement('a');
+  link.href=person==='me'?'#/profile':'#/repbook/member/'+encodeURIComponent(person);
+  link.setAttribute('aria-label','View '+member(person).name+'’s profile');
+  link.innerHTML=portrait(person);
+  link.onclick=()=>dialog.close();
+  lane.append(link);
+  link.querySelectorAll('[data-media]').forEach(loadTile);
+ }
+ lane.onanimationend=next;
+ next();
+}
+function installPlayback(dialog,item,video,panel){
+ const stories=[...activeStories(),...visibleFriendStories()];
+ const items=item.type==='story'?stories:data.posts.filter(x=>x.type==='reel'&&x.arenaMode===item.arenaMode);
+ const groups=authorGroups(items.some(x=>x.id===item.id)?items:[item]);
+ const queue=groups.flat(),index=queue.findIndex(x=>x.id===item.id);
+ const group=groups.find(g=>g.some(x=>x.id===item.id));
+ const position=group.findIndex(x=>x.id===item.id);
+ const timeline=document.createElement('div');
+ timeline.className='rep-timeline';
+ timeline.setAttribute('aria-label','Item '+(position+1)+' of '+group.length);
+ timeline.innerHTML=group.map((_,i)=>'<progress max="1" value="'+Number(i<position)+'"></progress>').join('');
+ dialog.prepend(timeline);
+ const lane=document.createElement('div');
+ lane.className='rep-faces';lane.dataset.id=item.id;
+ (dialog.querySelector('.rep-media-stage')||dialog).append(lane);
+ updateFaces(dialog,item.id);
+ const close=dialog.querySelector('.vs-close');
+ close.textContent='Back';close.classList.add('rep-key-back');
+ function move(step){
+  if(queue.length===1){if(video){video.currentTime=0;video.play().catch(()=>{})}return}
+  openMediaViewer(queue[(index+step+queue.length)%queue.length]);
+ }
+ dialog.onkeydown=e=>{
+  if(e.target.matches('input,textarea,select'))return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(e.key==='ArrowRight'?1:-1)}
+  if(e.key==='ArrowUp'){e.preventDefault();dialog.close()}
+ };
+ let start=null;
+ dialog.addEventListener('touchstart',e=>{
+  start=e.touches.length===1&&!e.target.closest('[data-comments],input,textarea')?e.touches[0]:null;
+ },{passive:true});
+ dialog.addEventListener('touchcancel',()=>{start=null});
+ dialog.addEventListener('touchend',e=>{
+  if(!start)return;
+  const dx=e.changedTouches[0].clientX-start.clientX,dy=e.changedTouches[0].clientY-start.clientY;
+  start=null;
+  if(Math.abs(dx)>50&&Math.abs(dx)>1.3*Math.abs(dy))move(dx<0?1:-1);
+  else if(dy< -55&&-dy>1.3*Math.abs(dx))dialog.close();
+ },{passive:true});
+ let elapsed=0,last=performance.now();
+ const bar=timeline.children[position];
+ function tick(now){
+  if(!dialog.isConnected||!dialog.open)return;
+  if(!document.hidden&&panel.hidden){
+   elapsed+=Math.min(now-last,200);
+   bar.value=video?(video.duration?video.currentTime/video.duration:0):elapsed/6000;
+   if(video?video.ended:elapsed>=6000){elapsed=0;move(1)}
+  }
+  last=now;requestAnimationFrame(tick);
+ }
+ requestAnimationFrame(tick);
 }
 function mediaActions(item){const kind=item.type,items=kind==='story'?activeStories():data.posts.filter(x=>x.type==='reel'&&x.author==='me');openDialog(`<h2>YOUR ${kind.toUpperCase()}</h2>${media(item)}<p class="vs-post-text">${esc(item.text)}</p>${tagLinks(item)}<div class="vs-actions"><button class="btn" data-vs="edit-item" data-kind="${kind}" data-id="${item.id}">Edit ${kind}</button><button class="btn-outline" data-vs="replace-item" data-kind="${kind}" data-id="${item.id}">Choose new ${item.arenaMode?'video':'photo or video'}</button><button class="btn-soft" data-vs="remove-item" data-kind="${kind}" data-id="${item.id}">Remove ${kind}</button></div><div class="vs-media-list">${items.length>1?items.map((x,i)=>`<button class="vs-media-edit" data-vs="media-menu" data-kind="${kind}" data-id="${x.id}" ${x.id===item.id?'aria-current="true"':''}>${esc(x.text||`${kind==='story'?'Story':'Reel'} ${i+1}`)}</button>`).join(''):''}</div><button class="btn-outline" data-vs="add-media" data-kind="${kind}">Add another ${kind}</button>`, 'Edit '+kind);hydrate()}
 const cleanTags=tags=>[...new Set(Array.isArray(tags)?tags:[])].filter(id=>people.some(p=>p.id===id));
@@ -167,7 +261,8 @@ window.ravnRepbookWrap=wrap;
 function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/leaderboard">${icon('trophy')} Leaderboard</a></aside></div>`)}
 function reels(){const items=data.posts.filter(x=>x.type==='reel');return wrap(`${storyStrip()}<div class="sectionhead"><div><h2>REELS</h2></div></div><div class="vs-reels">${items.length?items.map(post).join(''):''}</div>`)}
 function members(){return wrap(`<h2>FIND YOUR PEOPLE</h2><p>Follow other ravnsouth members.</p><div class="grid cols3">${people.map(p=>`<article class="card">${portrait(p.id,'vs-large')}<h3>${esc(p.name)}</h3><p>${esc(p.bio)}</p><a href="#/repbook/member/${p.id}" class="btn-outline">View profile</a></article>`).join('')}</div>`)}
-function profileView(id='me'){const own=id==='me',p=member(id);if(!own&&!people.some(x=>x.id===id))return wrap('<h2>Member not found</h2><a href="#/repbook/members">Browse members</a>');const posts=data.posts.filter(x=>x.author===id);return wrap(`${own?storyStrip():''}<div class="vs-profile-head card">${own?photoButton('vs-large'):portrait(id,'vs-large')}<div><div class="eyebrow">${own?'MY PROFILE':'MEMBER'}</div><h2>${esc(p.name)}</h2><p>${esc(p.bio||'A little about your journey belongs here.')}</p><div class="vs-counts"><span><strong>${posts.length}</strong> posts</span><span><strong>${allFollows.filter(f=>f.followed_id===(own?community.identity():id)).length}</strong> followers</span><span><strong>${allFollows.filter(f=>f.follower_id===(own?community.identity():id)).length}</strong> following</span></div></div>${!own?`<button class="btn" data-vs="follow" data-id="${id}" aria-pressed="${data.following.includes(id)}">${data.following.includes(id)?'Following':'Follow'}</button>`:''}</div>${own?`<div class="vs-layout"><form id="vs-profile" class="card"><h3>MAKE YOURSELF AT HOME</h3>${posts.some(item=>item.type==='reel')?'<button type="button" class="btn-outline" data-vs="manage-reels">Manage reels</button>':''}${activeStories().length?'<button type="button" class="btn-outline" data-vs="manage-stories">Manage stories</button>':''}<label class="field"><span>Display name</span><input name="displayName" maxlength="45" required minlength="2" value="${esc(s.name)}"></label><label class="field"><span>My Bio</span><textarea name="bio" maxlength="300" rows="3">${esc(data.bio)}</textarea></label><label class="field"><span>Profile visibility preference</span><select name="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members</option><option value="private" ${s.visibility==='private'?'selected':''}>Private</option></select></label><p class="mini">A private profile hides your name and bio from the member directory.</p><div class="vs-actions"><button class="btn" type="submit">Save profile</button><button class="btn-outline" type="button" data-logout>Log out</button>${profilePath?'<button class="btn-soft" type="button" data-vs="remove-photo">Remove photo</button>':''}</div><p id="vs-save-status" role="status"></p></form><aside><article class="card profile-progress-card"><h3>YOUR ACHIEVEMENTS</h3><p>${s.points} points · Level ${level()}</p><p>Earn badges through the Five Steps. 10 badges = Bronze, 50 = Silver, 100 = Gold.</p><p class="mini">Platinum: lead the leaderboard for a month and earn 10 Gold trophies in each step.</p><a class="btn-outline" href="#/repbook/achievements">View badges & trophies</a>${profileAwardBanner(profileAwardCounts())}</article></aside></div>`:''}<h2 class="vs-posts-title">${own?'MY POSTS':'POSTS'}</h2>${posts.length?posts.map(post).join(''):'<div class="card"><p>Your posts and reels will appear here.</p><button class="btn-outline" data-vs="create">Create a post</button></div>'}`)}
+function editProfile(){const posts=data.posts.filter(item=>item.author==='me');openDialog(`<form id="vs-profile" class="card"><h3>Edit profile</h3><button type="button" class="btn-outline" data-vs="choose-photo">Change profile picture</button>${posts.some(item=>item.type==='reel')?'<button type="button" class="btn-outline" data-vs="manage-reels">Manage reels</button>':''}${activeStories().length?'<button type="button" class="btn-outline" data-vs="manage-stories">Manage stories</button>':''}<label class="field"><span>Display name</span><input name="displayName" maxlength="45" required minlength="2" value="${esc(s.name)}"></label><label class="field"><span>My Bio</span><textarea name="bio" maxlength="300" rows="3">${esc(data.bio)}</textarea></label><label class="field"><span>Profile visibility preference</span><select name="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members</option><option value="private" ${s.visibility==='private'?'selected':''}>Private</option></select></label><p class="mini">A private profile hides your name and bio from the member directory.</p><div class="vs-actions"><button class="btn" type="submit">Save changes</button><button class="btn-outline" type="button" data-logout>Log out</button>${profilePath?'<button class="btn-soft" type="button" data-vs="remove-photo">Remove photo</button>':''}</div><p id="vs-save-status" role="status"></p></form>`,"Edit profile")}
+function profileView(id='me'){const own=id==='me',p=member(id);if(!own&&!people.some(x=>x.id===id))return wrap('<h2>Member not found</h2><a href="#/repbook/members">Browse members</a>');const posts=data.posts.filter(x=>x.author===id);return wrap(`${own?storyStrip():''}<div class="vs-profile-head card">${own?photoButton('vs-large'):portrait(id,'vs-large')}<div><div class="eyebrow">${own?'MY PROFILE':'MEMBER'}</div><h2>${esc(p.name)}</h2><p>${esc(p.bio||'A little about your journey belongs here.')}</p><div class="vs-counts"><span><strong>${posts.length}</strong> posts</span><span><strong>${allFollows.filter(f=>f.followed_id===(own?community.identity():id)).length}</strong> followers</span><span><strong>${allFollows.filter(f=>f.follower_id===(own?community.identity():id)).length}</strong> following</span></div></div>${!own?`<button class="btn" data-vs="follow" data-id="${id}" aria-pressed="${data.following.includes(id)}">${data.following.includes(id)?'Following':'Follow'}</button>`:''}</div>${own?`<div class="vs-layout"><button class="btn-outline" type="button" data-logout>Log out</button><aside><article class="card profile-progress-card"><h3>YOUR ACHIEVEMENTS</h3><p>${s.points} points · Level ${level()}</p><p>Earn badges through the Five Steps. 10 badges = Bronze, 50 = Silver, 100 = Gold.</p><p class="mini">Platinum: lead the leaderboard for a month and earn 10 Gold trophies in each step.</p><a class="btn-outline" href="#/repbook/achievements">View badges & trophies</a>${profileAwardBanner(profileAwardCounts())}</article></aside></div>`:''}<h2 class="vs-posts-title">${own?'MY POSTS':'POSTS'}</h2>${posts.length?posts.map(post).join(''):'<div class="card"><p>Your posts and reels will appear here.</p><button class="btn-outline" data-vs="create">Create a post</button></div>'}`)}
 const originalRender=render;
 vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
 render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=`<div class="wrap page-return"><a class="btn-outline" href="#/repbook">Back to Repbook</a></div>${custom}`;hydrate()};
@@ -398,7 +493,7 @@ document.addEventListener('submit',async event=>{
    if(uploaded&&existing?.media)await community.removeFile(existing.media).catch(()=>{});
    form.closest('dialog').close();replyTo=null;
   }
-  committed=true;await refreshCommunity();toast('Saved');
+  committed=true;if(form.id==='vs-profile')form.closest('dialog')?.close();await refreshCommunity();toast('Saved');
  }catch(e){
   if(uploaded&&!committed)await community.removeFile(uploaded).catch(()=>{});
   const message=committed?'Saved. Refresh to see your update.':e.message.includes('duplicate key')?'You have already recorded this step today.':e.message;
@@ -412,7 +507,10 @@ document.addEventListener('click',async e=>{
    if(b.disabled)return;b.disabled=true;
    try{
     if(action==='follow'){await community.follow(id,data.following.includes(id));await refreshCommunity()}
-    else{const liked=data.likes.includes(id);await community.like(id,liked);likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id!==id)return;
+    else{const liked=data.likes.includes(id);await community.like(id,liked);likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
+      if(!liked)ids.push('me');
+      reactors.set(id,ids);updateFaces(document.querySelector('#vs-dialog'),id);
+      data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id!==id)return;
       el.setAttribute('aria-pressed',String(!liked));
       const count=el.querySelector('[data-rep-count]');
       if(count)count.textContent=repTotal(likeCounts.get(id));})}
@@ -438,6 +536,7 @@ document.addEventListener('click',async e=>{
   }else if(['remove-item','delete','delete-story'].includes(action)){
    const item=[...data.posts,...data.stories].find(x=>x.id===id&&x.author==='me');
    if(item&&confirm('Delete this '+item.type+'?')){await community.deletePost(id);if(item.media)await community.removeFile(item.media).catch(()=>{});await refreshCommunity()}
+  }else if(action==='edit-profile'){editProfile()
   }else if(action==='edit-photo'||action==='choose-photo'){
    const input=document.getElementById('vs-photo');input.value='';input.click();
   }else if(action==='save-crop'){
