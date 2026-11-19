@@ -13,7 +13,7 @@ const visibleFriendStories=()=>data.stories.filter(x=>data.following.includes(x.
 let tab='all',mediaUrls=new Map(),pending=null,uploadVersion=0,uploadChecking=false;
 const uid=()=>crypto.randomUUID();
 const celebrations = (() => {
- let memberId, counts = {}, seen = {}, active;
+ let memberId, counts = {}, seen = {}, active, dailyReward;
  const inCommunity = () => /^#\/(repbook|arena|vault)(\/|$)/i.test(location.hash);
  const storageKey = () => 'ravn-award-reveals-v1:' + memberId;
  function save() { try { localStorage.setItem(storageKey(), JSON.stringify(seen)); } catch {} }
@@ -58,13 +58,14 @@ const celebrations = (() => {
    if (!reduced) await badge.animate([{transform:'scale(1)'},{transform:'scale(.93)',offset:.16},{transform:'translateY('+distance+'px) scale(.08)'}],{duration:770,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{});
    if (active?.dialog !== dialog) return;
    seen[key] = (seen[key] || 0) + 1;
+   if (dailyReward?.key === key && seen[key] >= counts[key]) seen.dailyCollected = dailyReward.day;
    save(); close(); show();
   };
   button.onclick = collect;
   dialog.oncancel = event => {event.preventDefault();collect();};
  }
  addEventListener('hashchange',show);
- return {update(id,data) {
+ return {update(id,data,daily) {
   const next = {};
   for (const step of data.steps) for (const tier of ['badges','bronze','silver','gold']) next[step.id+'/'+tier] = step[tier];
   next['lightning/platinum'] = Number(data.platinum);
@@ -72,6 +73,12 @@ const celebrations = (() => {
    close(); memberId = id;
    try { seen = JSON.parse(localStorage.getItem(storageKey())) || {...next}; } catch {seen = {...next};}
    save();
+  }
+  const dailyStep = data.steps.find(step => step.name === daily?.step);
+  dailyReward = dailyStep ? {key: dailyStep.id+'/badges', day: daily.day} : null;
+  if (dailyReward && seen.dailyCollected !== dailyReward.day) {
+   const key = dailyReward.key;
+   seen[key] = Math.min(seen[key] || 0, Math.max(0, next[key]-1));
   }
   counts = next;
   show();
@@ -106,7 +113,7 @@ window.loadCommunity=async()=>{
  allFollows=live.follows;data.following=allFollows.filter(f=>f.follower_id===me).map(f=>f.followed_id);
  scores=live.scores;ownBadges=live.own;
  const leading=live.months[0];verifiedMonth=leading?{verified:true,rank:1,month:leading.month,daysAtNumberOne:leading.days}:null;
- celebrations.update(me,arenaTrophyData());
+ celebrations.update(me,arenaTrophyData(),live.daily);
 };
 const member=id=>id==='me'?{id,name:s.name,bio:data.bio}:people.find(p=>p.id===id)||{id,name:'Member',bio:''};
 const portrait=(id,size='')=>{
