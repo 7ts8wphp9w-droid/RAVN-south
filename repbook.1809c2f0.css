@@ -365,3 +365,10 @@ body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-so
   outline-offset: 2px;
   border-color: #d7afe8;
 }
+
+.rep-count-list,.rep-member-list button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer;min-height:44px;text-decoration:underline;text-underline-offset:3px}
+.rep-member-list{box-sizing:border-box;width:min(90vw,400px);max-height:70dvh;overflow:auto;background:#19141e;color:#f0e8f4;border:1px solid #56425f;border-radius:18px;padding:18px}
+.rep-member-list::backdrop{background:#08060bc9}
+.rep-member-list header,.rep-member-list li>a,.rep-member-list li>span{display:flex;align-items:center;gap:12px}
+.rep-member-list header{justify-content:space-between}.rep-member-list h2{font-size:20px;margin:0}.rep-member-list ul{list-style:none;padding:0;margin:8px 0}
+.rep-member-list li>a,.rep-member-list li>span{padding:8px 0;color:inherit;text-decoration:none}.rep-member-list .vs-avatar{width:38px;height:38px;object-fit:cover;border-radius:50%}
