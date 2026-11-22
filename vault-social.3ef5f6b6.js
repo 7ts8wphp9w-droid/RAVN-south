@@ -2,6 +2,7 @@
 (() => {
 'use strict';
 const editor=window.repMediaEditor;
+let expiryAlerts=[], expiryTimer;
 let reactors=new Map();
 let results=new Map(),likeCounts=new Map();
 const DAY=86400000;
@@ -144,7 +145,12 @@ window.loadCommunity=async()=>{
   type:p.kind,at:Date.parse(p.created_at),media:p.media_path,mime:p.media_type==='video'?'video/mp4':'image/jpeg',
   tags:p.tags||[],effects:editor.clean(p.effects),activity:p.activity,place:p.place,arenaMode:p.challenge,reply:p.reply_to}))
   .sort((a,b)=>b.at-a.at);
+ expiryAlerts=live.expiryAlerts.map(a=>({
+  key:'expiry/'+a.post_id,time:Date.parse(a.expired_at),
+  message:'Your '+a.label+' expired. '+(a.historical?'Views were not tracked':a.views+(Number(a.views)===1?' view':' views'))+' · '+repTotal(Number(a.reps))+'.'
+ }));
  data.posts=posts.filter(p=>p.type!=='story');data.stories=posts.filter(p=>p.type==='story');
+ scheduleExpiry();
  data.likes=live.likes.filter(l=>l.user_id===me).map(l=>l.post_id);
  results=new Map(live.results.map(row=>[row.challenge_id,row]));
  likeCounts=new Map();
@@ -199,6 +205,21 @@ const photoButton=(size='')=>`<button type="button" class="vs-photo-button ${siz
 const glyphs={activity:'<path d="M2 12h5l3-8 4 16 3-8h5"/>',place:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',feed:'<path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',reels:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 6 3-6 3Z M4 7h16 M8 3l3 4 M14 3l3 4"/>',challenge:'<path d="M2 9 6 5h12l4 4-4 4H6L2 9Z M2 9l2 8 4 3h8l4-3 2-8 M8 14l1 5 M16 14l-1 5 M7 9h10"/>',people:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/>',profile:'<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',plus:'<path d="M12 4v16 M4 12h16"/>',photo:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',tag:'<path d="M3 3h8l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1"/>',trophy:'<path d="M8 3h8v7a4 4 0 0 1-8 0Z M8 5H4v3a4 4 0 0 0 4 4 M16 5h4v3a4 4 0 0 1-4 4 M12 14v6 M7 21h10"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',trash:'<path d="M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7"/>',check:'<path d="m4 12 5 5L20 6"/>'};
 const icon=name=>`<svg class="rep-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name]||glyphs.plus}</svg>`;
 const navBar=()=>`<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','feed'],['/repbook/reels','Reels','reels'],['/repbook/challenges','Arena','challenge'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${path()===url||url==='/repbook'&&path()==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
+function scheduleExpiry(){
+ clearTimeout(expiryTimer);
+ const timed=[...data.stories,...data.posts.filter(p=>p.type==='reel')];
+ if(!timed.length)return;
+ const next=timed.reduce((min,p)=>Math.min(min,p.at+DAY),Infinity);
+ expiryTimer=setTimeout(()=>{
+  const active=p=>p.type==='post'||p.at+DAY>Date.now();
+  data.posts=data.posts.filter(active);
+  data.stories=data.stories.filter(active);
+  const player=document.querySelector('dialog[data-media-deadline]');
+  if(player && Number(player.dataset.mediaDeadline)<=Date.now())player.close();
+  if(s.joined && (path().startsWith('/repbook')||path()==='/profile'))render();
+  scheduleExpiry();
+ },Math.max(0,next-Date.now()));
+}
 function activityAlerts(){
  const me=community.identity();
  const follows=allFollows.filter(row=>row.followed_id===me&&row.follower_id!==me).map(row=>({
@@ -209,7 +230,7 @@ function activityAlerts(){
   key:'tag/'+item.id,actor:item.author,id:item.id,time:item.at,
   message:item.arenaMode&&!item.reply?'challenged you in the Arena':'tagged you in a '+item.type
  }));
- return [...follows,...tags].sort((a,b)=>b.time-a.time);
+ return [...follows,...tags,...expiryAlerts].sort((a,b)=>b.time-a.time);
 }
 function readAlertKeys(){
  try{return new Set(JSON.parse(localStorage.getItem('repbook-alerts/'+community.identity())||'[]'))}catch{return new Set()}
@@ -221,6 +242,7 @@ function alertsButton(){
 function showAlerts(){
  const rows=activityAlerts(),read=readAlertKeys();
  const list=rows.map(row=>{
+  if(!row.actor)return '<p>'+esc(row.message)+(read.has(row.key)?'':' · New')+'</p>';
   const label=esc(member(row.actor).name)+' '+esc(row.message)+(read.has(row.key)?'':' · New');
   return row.id?`<p><button class="btn-outline" data-vs="view-reel" data-id="${esc(row.id)}">${label}</button></p>`:
    `<p><a class="btn-outline" href="#/repbook/member/${esc(row.actor)}">${label}</a></p>`;
@@ -277,6 +299,7 @@ function storyStrip(){const own=activeStories(),friends=visibleFriendStories();r
 function manageMedia(kind){const items=kind==='story'?activeStories():data.posts.filter(x=>x.type==='reel'&&x.author==='me');if(!items.length){composer(kind);return}mediaActions(items[0])}
 function openMediaViewer(item, showComments=false, feedItems=null){
  const {id,type}=item;
+ if(type!=='post' && item.at+DAY<=Date.now())return;
  const comments=()=>data.storyComments?.[id]||[];
  const dialog=openDialog(`${media(item)||`<p>${esc(item.text||'')}</p>`}
   <p class="vs-post-text">${mentionText(item.text)}</p>${tagLinks(item)}
@@ -290,6 +313,10 @@ function openMediaViewer(item, showComments=false, feedItems=null){
   <div data-comments hidden><ul aria-label="${type} comments"></ul>
    <form><label>Comment<input name="comment" required maxlength="500" autocomplete="off"></label><button class="btn-soft">Post comment</button></form>
   </div>`,'View '+type);
+ if(type==='story'||type==='reel'){
+  dialog.dataset.mediaDeadline=item.at+DAY;
+  if(item.author!=='me')community.view(id).catch(error=>console.warn('View recording failed',error.message));
+ }
  dialog.classList.add('story-player');
  dialog.classList.add('reel-player');
  const video=dialog.querySelector('video');
