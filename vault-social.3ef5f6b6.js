@@ -310,7 +310,7 @@ function openMediaViewer(item, showComments=false, feedItems=null){
   ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
   <div class="vs-post-tools story-tools">
-   <button type="button" class="rep-react" data-vs="like" data-id="${esc(id)}" aria-label="Rep this ${esc(type)}" aria-pressed="${data.likes.includes(id)}">${repDumbbell()}</button>${postRepCount(item)}
+   ${repControl(item)}
    <button type="button" class="btn-soft" data-comments-toggle aria-expanded="false">Comment</button>
   </div>
   <div data-comments hidden><ul aria-label="${type} comments"></ul>
@@ -343,25 +343,6 @@ function openMediaViewer(item, showComments=false, feedItems=null){
   showComment(text);input.value='';
  };
 }
-function updateFaces(dialog,id){
- const lane=dialog?.querySelector('.rep-faces');
- if(!lane||lane.dataset.id!==id)return;
- const ids=reactors.get(id)||[];
- let index=0;
- function next(){
-  lane.replaceChildren();
-  if(!ids.length)return;
-  const person=ids[index++ % ids.length],link=document.createElement('a');
-  link.href=person==='me'?'#/profile':'#/repbook/member/'+encodeURIComponent(person);
-  link.setAttribute('aria-label','View '+member(person).name+'’s profile');
-  link.innerHTML=portrait(person);
-  link.onclick=()=>dialog.close();
-  lane.append(link);
-  link.querySelectorAll('[data-media]').forEach(loadTile);
- }
- lane.onanimationend=next;
- next();
-}
 let viewerMuted=null;
 function installPlayback(dialog,item,video,panel,feedItems){
  const stories=[...activeStories(),...visibleFriendStories()];
@@ -375,10 +356,6 @@ function installPlayback(dialog,item,video,panel,feedItems){
  timeline.setAttribute('aria-label','Item '+(position+1)+' of '+group.length);
  timeline.innerHTML=group.map((_,i)=>'<progress max="1" value="'+Number(i<position)+'"></progress>').join('');
  dialog.prepend(timeline);
- const lane=document.createElement('div');
- lane.className='rep-faces';lane.dataset.id=item.id;
- (dialog.querySelector('.rep-media-stage')||dialog).append(lane);
- updateFaces(dialog,item.id);
  dialog.querySelector('.vs-close').remove();
  if(video){
   video.controls=false;
@@ -480,14 +457,44 @@ function feedMedia(item){
  const preview=editor.wrap(`<video class="vs-media" data-media="${esc(item.media)}" data-reel-preview muted playsinline loop preload="metadata"></video>`,item.effects);
  return `<button type="button" style="display:block;width:100%;padding:0;border:0;background:transparent" data-vs="feed-video" data-id="${esc(item.id)}" aria-label="Open video by ${esc(member(item.author)?.name||s.name)}">${preview}</button>`;
 }
-function postRepCount(item){
- const total=repTotal(likeCounts.get(item.id)||0);
- const attrs='data-rep-count data-id="'+esc(item.id)+'" aria-live="polite"';
- return item.author==='me'
-  ? '<button type="button" class="rep-count-list" '+attrs+' data-vs="rep-list" aria-haspopup="dialog">'+total+'</button>'
-  : '<span '+attrs+'>'+total+'</span>';
+function repControl(item){
+ const owner=item.author==='me',count=likeCounts.get(item.id)||0;
+ return `<button type="button" class="rep-react" data-vs="like" data-id="${esc(item.id)}" aria-pressed="${data.likes.includes(item.id)}" aria-label="Rep this ${esc(item.type)}"${owner?' data-rep-hold aria-haspopup="dialog" title="Hold to see who repped this"':''}>${repDumbbell()}<span data-rep-count data-id="${esc(item.id)}" aria-live="polite">${count}</span></button>`;
 }
-function showRepList(id){
+let hold=null,heldButton=null;
+function cancelHold(){
+ if(hold)clearTimeout(hold.timer);
+ hold=null;
+}
+document.addEventListener('pointerdown',event=>{
+ cancelHold();heldButton=null;
+ const button=event.target.closest('[data-rep-hold]');
+ if(!button||!event.isPrimary||event.button!==0)return;
+ hold={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>{
+  if(!button.isConnected)return;
+  heldButton=button;
+  showRepList(button.dataset.id,button);
+ },500)};
+});
+document.addEventListener('pointermove',event=>{
+ if(hold?.id===event.pointerId&&Math.hypot(event.clientX-hold.x,event.clientY-hold.y)>10)cancelHold();
+});
+for(const type of ['pointerup','pointercancel'])document.addEventListener(type,cancelHold);
+window.addEventListener('blur',cancelHold);
+document.addEventListener('contextmenu',event=>{
+ if(event.target.closest('[data-rep-hold]'))event.preventDefault();
+});
+document.addEventListener('click',event=>{
+ if(heldButton&&event.detail){heldButton=null;event.preventDefault();event.stopImmediatePropagation()}
+},true);
+document.addEventListener('keydown',event=>{
+ const button=event.target.closest('[data-rep-hold]');
+ if(button&&event.key==='ArrowDown'){
+  event.preventDefault();event.stopPropagation();showRepList(button.dataset.id,button);
+ }
+},true);
+function showRepList(id,button){
+ if(document.querySelector('.rep-member-list[open]'))return;
  const item=[...data.posts,...data.stories].find(post=>post.id===id);
  if(!item||item.author!=='me')return;
  const viewer=document.querySelector('#vs-dialog.story-player');
@@ -509,9 +516,13 @@ function showRepList(id){
  list.onclick=e=>{if(e.target.closest('a')){viewer?.close();list.close()}};
  list.onclose=()=>{list.remove();if(resume&&viewer?.open)video.play().catch(()=>{})};
  list.showModal();
+ const anchor=button.getBoundingClientRect();
+ const bounds=list.getBoundingClientRect();
+ list.style.left=Math.max(8,Math.min(anchor.left,innerWidth-bounds.width-8))+'px';
+ list.style.top=(anchor.top>=bounds.height+8?anchor.top-bounds.height-6:Math.max(8,Math.min(anchor.bottom+6,innerHeight-bounds.height-8)))+'px';
  list.querySelectorAll('[data-media]').forEach(loadTile);
 }
-function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools"><button class="rep-react" aria-label="Rep this post" data-vs="like" data-id="${x.id}" aria-pressed="${liked}">${repDumbbell()}</button>${postRepCount(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
+function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
 function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/leaderboard">${icon('trophy')} Leaderboard</a></aside></div>`)}
@@ -834,7 +845,6 @@ function playRepSound(buffer){
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-vs]');if(!b)return;const {vs:action,id,kind}=b.dataset;
  try{
-  if(action==='rep-list'){showRepList(id);return}
   if(action==='alerts'){showAlerts();return}
   if(action==='follow'||action==='like'){
    if(b.disabled)return;b.disabled=true;
@@ -842,12 +852,12 @@ document.addEventListener('click',async e=>{
     if(action==='follow'){await community.follow(id,data.following.includes(id));await refreshCommunity()}
     else{const liked=data.likes.includes(id);const sound=liked?null:prepareRepSound();await community.like(id,liked);if(sound)sound.then(playRepSound).catch(()=>{});likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
       if(!liked)ids.push('me');
-      reactors.set(id,ids);updateFaces(document.querySelector('#vs-dialog'),id);
+      reactors.set(id,ids);
       data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id!==id)return;
       el.setAttribute('aria-pressed',String(!liked));
       });
       document.querySelectorAll('[data-rep-count]').forEach(count=>{
-       if(count.dataset.id===id)count.textContent=repTotal(likeCounts.get(id));
+       if(count.dataset.id===id)count.textContent=String(likeCounts.get(id)||0);
       })}
    }finally{b.disabled=false}
   }else if(['story','friend-story','view-reel','comment-reel','feed-video'].includes(action)){
