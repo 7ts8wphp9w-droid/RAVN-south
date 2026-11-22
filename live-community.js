@@ -2,6 +2,7 @@ const recoveryRedirect = new URLSearchParams(location.hash.slice(1)).get('type')
 const community = (() => {
   const client = window.supabase.createClient('https://boalacuzelujpifbbptm.supabase.co','sb_publishable_WkJOLNBIHKTrU7Jyr1aLvg_tIt1JVtI');
   const bucket = client.storage.from('vault-media');
+  let loginReward = null;
   let user = null, ownerOverview = null;
   async function result(request) {
     const {data,error}=await request;
@@ -18,19 +19,21 @@ const community = (() => {
     }
   }
   async function snapshot(){
-    const day = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/London', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
-    const [profiles,posts,likes,follows,comments,scores,own,months,results,daily,expiryAlerts]=await Promise.all([
+    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),result(client.from('arena_badge_rolls').select('step,day').eq('user_id',identity()).eq('day',day).eq('source','login').eq('won',true).limit(1)),rows('vault_expiry_alerts','post_id')]);
-    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,daily:daily[0]};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id')]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,daily:loginReward};
   }
   async function prepare(account){
+    if(user?.id!==account.id)loginReward=null;
     user=account;
     ownerOverview=null;
     const overview=await result(client.rpc('ravn_owner_overview'));
     if(user?.id!==account.id)return;
     ownerOverview=overview;
-    await result(client.rpc('arena_record_visit'));
+    const receipt=await result(client.rpc('arena_claim_login_badge'));
+    if(user?.id!==account.id)return;
+    if(receipt)loginReward=receipt;
     const row=await result(client.from('vault_profiles').select('id').eq('id',identity()).maybeSingle());
     if(!row)await result(client.from('vault_profiles').upsert({id:user.id,display_name:String(user.user_metadata?.display_name||'Member').trim().slice(0,45)||'Member'},{onConflict:'id',ignoreDuplicates:true}));
   }
@@ -42,7 +45,7 @@ const community = (() => {
   async function toggle(table,keys,currentlySet){
     await result(currentlySet?client.from(table).delete().match(keys):client.from(table).upsert(keys,{ignoreDuplicates:true}));
   }
-  return {client,identity,prepare,snapshot,upload,ownerOverview:()=>ownerOverview,clear(){user=null;ownerOverview=null},
+  return {client,identity,prepare,snapshot,upload,ownerOverview:()=>ownerOverview,clear(){loginReward=null;user=null;ownerOverview=null},
     signed:async key=>(await result(bucket.createSignedUrl(key,3600))).signedUrl,
     removeFile:key=>result(bucket.remove([key])),
     profile:fields=>result(client.from('vault_profiles').update(fields).eq('id',identity())),
