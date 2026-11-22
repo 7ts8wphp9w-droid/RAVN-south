@@ -19,10 +19,10 @@ const community = (() => {
   }
   async function snapshot(){
     const day = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/London', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
-    const [profiles,posts,likes,follows,comments,scores,own,months,results,daily]=await Promise.all([
+    const [profiles,posts,likes,follows,comments,scores,own,months,results,daily,expiryAlerts]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),result(client.from('arena_badge_rolls').select('step,day').eq('user_id',identity()).eq('day',day).eq('source','login').eq('won',true).limit(1))]);
-    return {profiles,posts,likes,follows,comments,scores,own,months,results,daily:daily[0]};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),result(client.from('arena_badge_rolls').select('step,day').eq('user_id',identity()).eq('day',day).eq('source','login').eq('won',true).limit(1)),rows('vault_expiry_alerts','post_id')]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,daily:daily[0]};
   }
   async function prepare(account){
     user=account;
@@ -48,6 +48,10 @@ const community = (() => {
     profile:fields=>result(client.from('vault_profiles').update(fields).eq('id',identity())),
     post:(fields,id)=>result(id?client.from('vault_posts').update(fields).eq('id',id).eq('user_id',identity()).select().single():client.from('vault_posts').insert({...fields,user_id:identity()}).select().single()),
     deletePost:id=>result(client.from('vault_posts').delete().eq('id',id).eq('user_id',identity())),
+    view:async id=>{
+      const {error}=await client.from('vault_media_views').insert({post_id:id,viewer_id:identity()});
+      if(error && error.code!=='23505')throw Error(error.message);
+    },
     like:(id,set)=>toggle('vault_likes',{post_id:id,user_id:identity()},set),
     follow:(id,set)=>toggle('vault_follows',{followed_id:id,follower_id:identity()},set),
     comment:(id,body)=>result(client.from('vault_comments').insert({post_id:id,user_id:identity(),body})),
