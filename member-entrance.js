@@ -26,7 +26,7 @@
       <label>Email<input name="email" type="email" autocomplete="email" required></label>
       <p role="status">${recovering?'Open a fresh recovery link to continue.':''}</p><button class="gate-primary">Send reset link</button>
       <a href="#/login">Back to login</a></form>`;
-    else if(account)body='<a class="gate-primary" href="#/repbook">Open Repbook</a><a class="gate-secondary" href="#/arena">Enter Arena</a><a href="#/home">Home</a>';
+    else if(account)body='<nav><a class="gate-primary" style="width:min(100%, 15rem)" href="#/home">Enter site</a></nav>';
     else if(auth)body=`<form class="gate-form" id="gateway-form"><h1>${signup?'Join ravnsouth':'Log in'}</h1>
       ${signup?'<label>Display name<input name="displayName" required minlength="2" maxlength="45" autocomplete="nickname"></label>':''}
       <label>Email<input name="email" type="email" autocomplete="email" required></label>
@@ -35,7 +35,7 @@
       ${signup?'':'<a href="#/forgot-password">Forgot password?</a>'}
       <a href="#/${signup?'login':'signup'}">${signup?'Already a member? Log in':'Create a free account'}</a></form>`;
     else body='<p>Join Repbook and Arena with a free account.</p><nav><a class="gate-primary" href="#/signup">Sign up free</a><a class="gate-secondary" href="#/login">Log in</a></nav>';
-    document.getElementById('app').innerHTML=`<main class="gate"><section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="ravnsouth">${body}</section>${!auth&&ready&&!issue?'<section class="gate-community"><a class="gate-book" href="#/repbook"><span><img class="repbook-app-symbol" src="./assets/repbook-app-symbol.svg" alt=""></span><strong>Repbook</strong></a><a href="#/arena">Arena</a></section>':''}</main>`;
+    document.getElementById('app').innerHTML=`<main class="gate"><section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="ravnsouth">${body}</section>${!auth&&ready&&!issue?'<section class="gate-community"><a class="gate-book" href="#/repbook"><span><img class="repbook-app-symbol" src="./assets/repbook-app-symbol.svg" alt=""></span><strong>Repbook</strong></a>'+(account?'':'<a href="#/arena">Arena</a>')+'</section>':''}</main>`;
   };
   async function session(user){
     if(user?.id===account?.id && ready && !issue)return;
