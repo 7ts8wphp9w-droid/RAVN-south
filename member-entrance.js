@@ -6,7 +6,7 @@
     const route=path();
     const forgot=route==='/forgot-password';
     const auth=recovering||forgot||route==='/signup'||route==='/login';
-    if(ready && account && !auth && route!=='/'){
+    if(route==='/privacy' || (ready && account && !auth && route!=='/')){
       document.body.classList.remove('gateway-active');
       previousRender();
       return;
@@ -23,11 +23,13 @@
       <label>Confirm password<input name="repeat" type="password" autocomplete="new-password" required></label>
       <p role="status"></p><button class="gate-primary">Save new password</button></form>`;
     else if(forgot || recovering)body=`<form class="gate-form" id="reset-request"><h1>Reset password</h1>
+      <p class="mini"><a href="#/privacy">Privacy notice</a></p>
       <label>Email<input name="email" type="email" autocomplete="email" required></label>
       <p role="status">${recovering?'Open a fresh recovery link to continue.':''}</p><button class="gate-primary">Send reset link</button>
       <a href="#/login">Back to login</a></form>`;
     else if(account)body='<nav><a class="gate-primary" style="width:min(100%, 15rem)" href="#/home">Enter site</a></nav>';
     else if(auth)body=`<form class="gate-form" id="gateway-form"><h1>${signup?'Join ravnsouth':'Log in'}</h1>
+      <p class="mini"><a href="#/privacy">Privacy notice</a></p>
       ${signup?'<label>Display name<input name="displayName" required minlength="2" maxlength="45" autocomplete="nickname"></label>':''}
       <label>Email<input name="email" type="email" autocomplete="email" required></label>
       <label>Password<input name="password" type="password" autocomplete="${signup?'new-password':'current-password'}" ${signup?'minlength="8"':''} required></label>
