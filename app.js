@@ -168,8 +168,18 @@ function about(){
   return hero + `<section class="section"><div class="wrap grid">${steps.map(([name, explanation, example], index) => card(`<img src="${A}story-${name.toLowerCase()}.webp" alt="${sceneDescriptions[index]}" width="144" height="144" loading="lazy" style="float:right;width:clamp(86px,23vw,144px);height:auto;border-radius:10px;margin:0 0 12px 14px"><h2>${index + 1}. ${name}</h2><p>${explanation}</p><p><em>“${example}”</em></p>`)).join("")}</div></section>`+section('MEET THE TEAM',card(`<h3>JACK & JILL</h3><p>Our two coaching characters support different parts of the same journey.</p>${btn('/coaches','Meet the coaches')}`)) }
 const contactAddress = 'info@ravnsouth.com';
 function contact(){
-  return pageHero('CONTACT','GET IN TOUCH','For enquiries, feedback or support, please email us at the address below.')
-    + `<section class="section"><div class="wrap"><a class="btn-outline" href="mailto:${contactAddress}">${contactAddress}</a></div></section>`;
+  return `<section class="contact-page wrap" aria-labelledby="contact-title">
+    <div class="contact-panel">
+      <div class="contact-brand">
+        <img src="${A}ravn-angular-logo.png" width="2172" height="724" alt="ravnsouth. DO IT. PROVE IT.">
+      </div>
+      <div class="contact-copy">
+        <h1 id="contact-title">Contact</h1>
+        <p>For enquiries, feedback or support, please email us.</p>
+        <a class="contact-email" href="mailto:${contactAddress}">${contactAddress}</a>
+      </div>
+    </div>
+  </section>`;
 }
 const faqData=[['Do I need to pay to use the community?','Repbook and Arena are free with your account. The Training & Nutrition subscription covers plans and programmes.'],['Can I buy the highest training level?','No. Advanced programme access should be earned through effort, consistency and appropriate milestones, not simply purchased.'],['How does the Arena work?','Members earn legitimate points through training, nutrition, check-ins and challenges. The monthly leaderboard ranks overall achievement.'],['Are there prizes for first place?','No separate reward is planned. Recognition on the leaderboard is the reward.'],['Is this version live?','Repbook and Arena are open to free members. Shared accounts, payments, AI and social data are not yet connected.']];
 function faq(){return pageHero('FREQUENTLY ASKED QUESTIONS','CLEAR ANSWERS.','Learn how the ravnsouth experience works.')+section('YOUR QUESTIONS',`<div class="list">${faqData.map(([q,a])=>`<details class="card" style="padding:17px 22px"><summary style="cursor:pointer;font-weight:700">${q}</summary><p style="margin-top:16px">${a}</p></details>`).join('')}</div>`) }

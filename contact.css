@@ -1,0 +1,143 @@
+body:has(.contact-page) {
+  --contact-background: #0d0a10;
+  --contact-panel: #141018;
+  --contact-border: #49364f;
+  --contact-ink: #f5eff8;
+  --contact-muted: #d1c2d9;
+  --contact-lilac: #d9b9e6;
+  background: var(--contact-background);
+  color: var(--contact-ink);
+}
+
+body:has(.contact-page) :is(.topbar, .footer, .nav.open) {
+  background: var(--contact-background);
+  border-color: var(--contact-border);
+}
+
+body:has(.contact-page) :is(.page-return button, .topactions .btn-soft) {
+  background: #211927;
+  border-color: #513d5b;
+  color: var(--contact-ink);
+}
+
+body:has(.contact-page) :is(.footer a, .footer p, .footer small) {
+  color: var(--contact-muted);
+}
+
+body:has(.contact-page) .footer {
+  margin-top: 0;
+}
+
+.page:has(.contact-page) {
+  background: radial-gradient(ellipse at 73% 32%, #25182e 0%, transparent 56%), var(--contact-background);
+  padding-bottom: clamp(52px, 9vw, 122px);
+}
+
+.page:has(.contact-page) > .page-return,
+.contact-page {
+  max-width: 1080px;
+}
+
+.page:has(.contact-page) > .page-return {
+  padding-block: clamp(20px, 4vw, 40px);
+}
+
+.contact-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  grid-template-areas: 'copy brand';
+  overflow: hidden;
+  border: 1px solid var(--contact-border);
+  border-radius: 18px;
+  background: var(--contact-panel);
+  box-shadow: 0 20px 64px #0005;
+}
+
+.contact-brand {
+  grid-area: brand;
+  display: grid;
+  place-items: center;
+  padding: clamp(22px, 5vw, 56px);
+  border-inline-start: 1px solid var(--contact-border);
+  background: radial-gradient(ellipse at center, #3b2946 0%, #241a2b 56%, #19131e 100%);
+}
+
+.contact-brand img {
+  display: block;
+  width: min(100%, 340px);
+  height: auto;
+  filter: url(#ravn-clear-logo);
+}
+
+.contact-copy {
+  grid-area: copy;
+  padding: clamp(26px, 6vw, 72px);
+}
+
+.contact-copy h1 {
+  margin: 0 0 14px;
+  color: var(--contact-ink);
+  font-size: clamp(44px, 6vw, 76px);
+  line-height: 1.02;
+  letter-spacing: .025em;
+}
+
+.contact-copy p {
+  max-width: 30ch;
+  margin: 0 0 26px;
+  color: var(--contact-muted);
+  font-size: clamp(16px, 2.1vw, 20px);
+  line-height: 1.55;
+}
+
+.contact-email {
+  display: inline-flex;
+  min-height: 52px;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 21px;
+  border: 1px solid var(--contact-lilac);
+  border-radius: 12px;
+  background: var(--contact-lilac);
+  color: #211427;
+  font-size: clamp(16px, 2vw, 18px);
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.contact-email:hover {
+  background: #ead2f3;
+}
+
+body:has(.contact-page) :focus-visible {
+  outline: 2px solid #e4b8fa;
+  outline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  .contact-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'brand' 'copy';
+  }
+
+  .contact-brand {
+    min-height: 142px;
+    border-inline-start: 0;
+    border-bottom: 1px solid var(--contact-border);
+  }
+
+  .contact-brand img {
+    width: min(100%, 270px);
+  }
+
+  .contact-copy {
+    padding: 28px clamp(18px, 6vw, 28px) 30px;
+  }
+
+  .contact-email {
+    width: 100%;
+    padding-inline: 12px;
+  }
+}
