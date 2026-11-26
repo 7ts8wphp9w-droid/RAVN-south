@@ -14,7 +14,7 @@ body:has(.contact-page) :is(.topbar, .footer, .nav.open) {
   border-color: var(--contact-border);
 }
 
-body:has(.contact-page) :is(.page-return button, .topactions .btn-soft) {
+body:has(.contact-page) .topactions .btn-soft {
   background: #211927;
   border-color: #513d5b;
   color: var(--contact-ink);

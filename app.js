@@ -8,22 +8,63 @@ const nav=[['/home','Home'],['/fitness-programmes','Fitness Programmes'],['/nutr
 const defaults={name:'RAVN Member',joined:false,tier:'Free',points:0,logs:[],program:'Foundation Strength',posts:[],likes:[],groups:[],messages:[],nutrition:[],stories:[],gifts:[],buddies:[],searchTerm:'',checkinText:'',goals:[],visibility:'members',email:'',notices:true};
 let s=structuredClone(defaults);
 function save(){}
-// Remove retired bonus records once; keep all genuine action history and points.
-{ const retired=s.logs.filter(log=>log.key==='first-accolade');
-  if(retired.length){s.points=Math.max(0,s.points-retired.reduce((total,log)=>total+(Number(log.points)||0),0));s.logs=s.logs.filter(log=>log.key!=='first-accolade');save();}
-}
-
 function path(){return decodeURI(location.hash.slice(1)||'/').split('?')[0].replace(/\/$/,'')||'/'}
 function navto(p){location.hash='#'+p}
 function toast(msg){let old=$('.toast');if(old)old.remove();let d=document.createElement('div');d.className='toast';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2900)}
 const today=()=>new Date().toISOString().slice(0,10);
 const month=()=>new Date().toISOString().slice(0,7);
-function logAction(key,points,label,scope='day'){
- if(!s.joined){toast('Enter member demo first to track achievements.');navto('/login');return}
- let ref=scope==='day'?today():scope==='month'?month():'once';
- if(s.logs.some(x=>x.key===key&&x.ref===ref)){toast('Already recorded for this period — consistency counts.');return}
- s.logs.unshift({key,points,label,ref,date:new Date().toISOString()});s.points+=points;
- save();toast('+'+points+' points · '+label);render();
+const dashboardActionLabels=new Map([
+ ['training','Training completed'],['nutrition','Nutrition completed'],
+ ['checkin','Accountability check-in'],['challenge','Monthly consistency challenge']
+]);
+const progressRef=(key,day)=>key==='challenge'?day.slice(0,7):day;
+async function syncDashboardProgress(recent){
+ const state=s;
+ const actions=await community.dashboardActions();
+ if(s!==state)return;
+ const labels=new Map(s.logs.map(log=>[log.key+'/'+log.ref,log.label]));
+ if(recent)labels.set(recent.key+'/'+recent.ref,recent.label);
+ s.logs=actions.map(({action,activity_day,points})=>{
+  const ref=progressRef(action,activity_day);
+  return {key:action,points,ref,date:activity_day,label:labels.get(action+'/'+ref)||dashboardActionLabels.get(action)};
+ });
+ s.points=s.logs.reduce((total,log)=>total+log.points,0);
+}
+async function restoreDashboardProgress(){
+ const state=s;
+ if(!s.dashboardProgressSynced){
+  const previousActions=s.logs.flatMap(log=>{
+   const day=String(log.date||'').slice(0,10);
+   return dashboardActionLabels.has(log.key)&&/^\d{4}-\d{2}-\d{2}$/.test(day)&&
+    day>=community.profileCreatedDay()&&day<=today()&&(day<'2026-11-27'||day===today())
+     ? [{action:log.key,activity_day:day}] : [];
+  });
+  await community.recordDashboardActions(previousActions);
+ }
+ if(s!==state)return;
+ await syncDashboardProgress();
+ if(s===state)state.dashboardProgressSynced=true;
+}
+let recordingProgressFor=null;
+async function logAction(key,label){
+ if(!s.joined){navto('/login');return}
+ if(recordingProgressFor===s||!dashboardActionLabels.has(key))return;
+ const state=s,day=today(),ref=progressRef(key,day);
+ if(s.logs.some(log=>log.key===key&&log.ref===ref)){toast('Already recorded for this period.');return}
+ recordingProgressFor=state;
+ try{
+  const inserted=await community.recordDashboardActions([{action:key,activity_day:day}]);
+  if(s!==state)return;
+  await syncDashboardProgress(inserted.length?{key,ref,label}:null);
+  if(s!==state)return;
+  save();render();
+  const action=s.logs.find(log=>log.key===key&&log.ref===ref);
+  toast(inserted.length&&action?'+'+action.points+' points · '+action.label:'Already recorded for this period.');
+ }catch{
+  if(s===state)toast('Could not save your progress. Please try again.');
+ }finally{
+  if(recordingProgressFor===state)recordingProgressFor=null;
+ }
 }
 const logged=(key)=>s.logs.some(l=>l.key===key&&l.ref===today());
 const logsMonth=()=>s.logs.filter(l=>l.date.slice(0,7)===month());
@@ -33,6 +74,20 @@ const rankProgress=()=>s.points%pointsPerRank;
 const level=()=>Math.floor(s.points/pointsPerRank)+1;
 const pct=()=>Math.min(100,Math.round(rankProgress()*100/pointsPerRank));
 const avatar=n=>`<span class="avatar">${esc(n).split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</span>`;
+function profilePhotoWithLevel(photo,memberLevel=level()){
+ if(!Number.isSafeInteger(memberLevel)||memberLevel<1)return photo;
+ return `<div class="profile-photo-with-level">${photo}<span class="profile-level" aria-label="Level ${memberLevel}">LVL ${memberLevel}</span></div>`;
+}
+function pageBack(fallback='/'){
+ return `<div class="wrap page-return"><button type="button" class="site-back" aria-label="Back" data-site-back="${fallback}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button></div>`;
+}
+function backFallback(route){
+ if(route==='/dashboard')return '/profile';
+ if(route.startsWith('/repbook/'))return '/repbook';
+ if(route.startsWith('/nutrition/'))return '/nutrition';
+ if(route==='/hall-of-fame')return '/repbook/challenges';
+ return '/';
+}
 const btn=(href,label,outline=false)=>`<a class="${outline?'btn-outline':'btn'}" href="#${href}">${label}</a>`;
 const pageHero=(title,sub,desc)=>`<section class="hero-custom"><div class="wrap"><div class="eyebrow"><span style="text-transform:none">ravnsouth</span> · DO IT. PROVE IT.</div><h1>${title}</h1><div class="eyebrow" style="color:#e5c39b">${sub}</div><p class="lead">${desc}</p></div></section>`;
 const section=(title,body,after='')=>`<section class="section"><div class="wrap"><div class="sectionhead"><h2>${title}</h2>${after}</div>${body}</div></section>`;
@@ -79,7 +134,7 @@ function arena(){
  return '<section class="hero-crop arena-sparring-hero"><img src="'+A+'arena-combatants-approved.webp" alt="Jack and Jill facing each other in friendly competitive sparring, beside the RAVN Arena flag"></section><div class="center arena-leaderboard-action">'+btn('/repbook/leaderboard','View leaderboard →')+'</div>'+section('YOUR ARENA COLLECTION',card('<h3>BADGES · TROPHIES</h3><p>Discover your five elemental badges and celebrate every milestone.</p>'+btn('/repbook/achievements','Open your collection')))+section('COMPETE · PROGRESS · EARN',featureCards)+section('MONTHLY LEADERBOARD',s.joined?'<div class="grid cols2">'+panel+scoring+'</div>':card('<div class="eyebrow">MEMBERS ONLY</div><h3>The leaderboard is waiting for you.</h3><p>Sign up for a free member profile to enter the Arena and see the rankings.</p>'+btn('/signup','Join RAVN South')) )+section('BUILD YOUR LEGACY',legacy);
 }
 function arenaLeaderboard(){return pageHero('ARENA LEADERBOARD','MEMBERS ONLY · CONSISTENCY WINS.','Every genuine step has value. Compete through accountability and achievements.')+section('CURRENT STANDINGS',s.joined?card('<div class="eyebrow">DEMONSTRATION RANKINGS · '+month()+'</div><div class="tabs"><button class="tab active" data-action="leader-tab" data-period="month">This month</button><button class="tab" data-action="leader-tab" data-period="all">All time</button></div><div class="tablewrap"><table><thead><tr><th>Rank</th><th>Member</th><th>Points</th><th>Badges</th><th>Trophies</th></tr></thead><tbody id="leaderrows">'+rankRows()+'</tbody></table></div><p class="mini">Sample competitors are fictitious. Your demo points are only stored on this device.</p>'):card('<h3>MEMBERS-ONLY STANDINGS</h3><p>Create a free demo profile to enter the Arena.</p>'+btn('/signup','Join free')))+section('THE BIGGER PICTURE',card('<h3>LONG-TERM CONSISTENCY</h3><p>Monthly standings begin again. The Hall of Fame is where members build their legacy.</p>'+btn('/hall-of-fame','Hall of Fame',true)))}
-function hall(){const honours=[['','CONSISTENCY','Recognised for sustained effort'],['','ACHIEVEMENT','Recognised for major milestones'],['','COMMUNITY','Recognised for encouraging others']];const inner='<div class="grid cols3">'+honours.map(h=>card('<h3>'+h[1]+'</h3><p>'+h[2]+'</p><span class="tag">Future member honours</span>')).join('')+'</div><div class="line"></div><p>No genuine Hall of Fame winners have been recorded in this prototype. Members will be featured once verifiable competition history exists.</p>';return pageHero('HALL OF FAME','CONSISTENCY BUILDS A LEGACY.','The Arena starts afresh every month. The Hall of Fame celebrates long-term achievement.')+section('FOUNDING HONOURS',s.joined?inner:card('<h3>Members-only recognition</h3><p>Enter the member area to view the Hall of Fame.</p>'+btn('/signup','Join RAVN South')),btn('/repbook/challenges','Back to Arena',true))}
+function hall(){const honours=[['','CONSISTENCY','Recognised for sustained effort'],['','ACHIEVEMENT','Recognised for major milestones'],['','COMMUNITY','Recognised for encouraging others']];const inner='<div class="grid cols3">'+honours.map(h=>card('<h3>'+h[1]+'</h3><p>'+h[2]+'</p><span class="tag">Future member honours</span>')).join('')+'</div><div class="line"></div><p>No genuine Hall of Fame winners have been recorded in this prototype. Members will be featured once verifiable competition history exists.</p>';return pageHero('HALL OF FAME','CONSISTENCY BUILDS A LEGACY.','The Arena starts afresh every month. The Hall of Fame celebrates long-term achievement.')+section('FOUNDING HONOURS',s.joined?inner:card('<h3>Members-only recognition</h3><p>Enter the member area to view the Hall of Fame.</p>'+btn('/signup','Join RAVN South')),btn('/repbook/challenges','Arena',true))}
 
 function challenges(){
  const items=[['Check in today','Reflect on your effort','checkin',5],['Complete planned training','Follow through with training','training',10],['Monthly consistency challenge','Show up this month','challenge',20]];
@@ -120,7 +175,7 @@ function membership(){
 }
 function login(){return pageHero('MEMBER ACCESS','WELCOME BACK.','Explore the connected member experience in demo mode.')+section('ENTER THE DEMO',`<div style="max-width:550px;margin:auto">${card(`<div class="notice">Demo access only: this is not a secure account login and should not be used with real passwords.</div><label class="field"><span>Your display name</span><input id="demoName" maxlength="45" value="${esc(s.name==='RAVN Member'?'':s.name)}" placeholder="e.g. Alex R."></label><button class="btn" data-action="demo-login">Enter member dashboard →</button><div class="line"></div><p>New here? <a href="#/signup" style="color:var(--green)">Create a demo profile</a></p>`)}</div>`) }
 function signup(){return pageHero('START YOUR JOURNEY','EVERY STEP SHOULD FEEL LIKE AN ACHIEVEMENT.','Create a local demo profile, choose your goals and explore RAVN South.')+section('YOUR FIRST STEP',`<div style="max-width:600px;margin:auto">${card(`<label class="field"><span>Your display name</span><input id="signupName" maxlength="45" placeholder="How should members see your name?"></label><label class="field"><span>Your focus</span><select id="signupGoal"><option>Build consistency</option><option>Build strength</option><option>Improve nutrition</option><option>Build confidence</option><option>Support my general wellbeing</option></select></label><button class="btn" data-action="signup">Create demo profile</button><p class="mini">This local demo doesn't collect a password or register you on a live service.</p>`)}</div>`) }
-function profile(){return pageHero('YOUR PROFILE','YOUR STORY. YOUR CHOICE.','Show the progress you choose to share.')+section('PERSONAL PROFILE',`<div class="grid cols2">${card(`<div class="profilehero">${avatar(s.name)}<div><h3>${esc(s.name)}</h3><span class="pill">Community member</span><p>${s.points} points · Level ${level()}</p></div></div><div class="line"></div><label class="field"><span>Display name</span><input id="profileName" maxlength="45" value="${esc(s.name)}"></label><label class="field"><span>Profile visibility</span><select id="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members can see my profile</option><option value="private" ${s.visibility==='private'?'selected':''}>Private profile (demo preference)</option></select></label><button class="btn" data-action="save-profile">Save profile</button>`)}${card(`<h3>YOUR PROGRESS</h3><div class="stat"><strong>${s.points}</strong><span>Points earned</span></div><div class="line"></div><p>Current training path: ${esc(s.program)}</p>${btn('/repbook/achievements','Badges & trophies',true)}<div class="line"></div>${btn('/settings','Account settings',true)}<div class="profile-share-actions"><button class="btn-outline" data-share-profile ${s.visibility==='private'?'disabled':''}>Share profile</button><p class="mini">${s.visibility==='private'?'Your profile is private. Change visibility to share.':'Shares your display name and a snapshot of your award totals.'}</p></div>${awardGallery()}`,'profile-progress-card')}</div>`) }
+function profile(){return pageHero('YOUR PROFILE','YOUR STORY. YOUR CHOICE.','Show the progress you choose to share.')+section('PERSONAL PROFILE',`<div class="grid cols2">${card(`<div class="profilehero">${profilePhotoWithLevel(avatar(s.name))}<div><h3>${esc(s.name)}</h3><span class="pill">Community member</span><p>${s.points} points</p>${btn('/dashboard','Dashboard',true)}</div></div><div class="line"></div><label class="field"><span>Display name</span><input id="profileName" maxlength="45" value="${esc(s.name)}"></label><label class="field"><span>Profile visibility</span><select id="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members can see my profile</option><option value="private" ${s.visibility==='private'?'selected':''}>Private profile (demo preference)</option></select></label><button class="btn" data-action="save-profile">Save profile</button>`)}${card(`<h3>YOUR PROGRESS</h3><div class="stat"><strong>${s.points}</strong><span>Points earned</span></div><div class="line"></div><p>Current training path: ${esc(s.program)}</p>${btn('/repbook/achievements','Badges & trophies',true)}<div class="line"></div>${btn('/settings','Account settings',true)}<div class="profile-share-actions"><button class="btn-outline" data-share-profile ${s.visibility==='private'?'disabled':''}>Share profile</button><p class="mini">${s.visibility==='private'?'Your profile is private. Change visibility to share.':'Shares your display name, level and a snapshot of your award totals.'}</p></div>${awardGallery()}`,'profile-progress-card')}</div>`) }
 function groups(){let gs=['Strength & Training','Nutrition Together','Mindset & Motivation','New Members','Walkers & Runners','The Accountability Circle'];return pageHero('COMMUNITY GROUPS','FIND YOUR PEOPLE.','Connect with members who share your interests and goals.')+section('DISCOVER GROUPS',`<div class="grid cols3">${gs.map((g,i)=>card(`<h3>${g}</h3><p>Share ideas, encouragement and small victories with like-minded people.</p><button class="btn-outline" data-action="group" data-name="${esc(g)}">${s.groups.includes(g)?'✓ Joined':'Join group'}</button>`)).join('')}</div><p class="mini" style="margin-top:20px">Group memberships are saved locally. Member-to-member rooms require a shared backend.</p>`) }
 function messages(){return pageHero('MESSAGING','CONNECTION STARTS WITH A CONVERSATION.','Preview how your member messaging space will look.')+section('YOUR MESSAGES',`<div class="grid cols2">${card(`<h3>DEMO CONVERSATION</h3><div id="messageChat" class="chat">${[{from:'Jack',text:'Welcome to your RAVN South inbox. Real member messaging will become available when secure accounts are connected.'},...s.messages].map(m=>`<div class="bubble ${m.from==='You'?'me':''}">${esc(m.text)}</div>`).join('')}</div><div class="chatinput"><input id="messageText" placeholder="Write a demo message..." maxlength="400"><button class="btn" data-action="message">Send</button></div>`)}${card(`<h3>PRIVACY FIRST</h3><p>In the finished Repbook, members will control who can contact them and what profile information is visible.</p><p class="mini">This messaging panel is local-only: no real message will be sent to another person.</p>${btn('/settings','Privacy settings',true)}`)}</div>`) }
 function coaches(){return pageHero('MEET YOUR COACHES','TWO SPECIALITIES. ONE JOURNEY.','Jack supports training and nutrition questions. Jill supports mentality and the five-step program to mentality.')+section('COACH JACK & COACH JILL',`<div class="approved-coach-grid">${['jack','jill'].map((who,i)=>`<a class="approved-coach-card approved-coach-${who}" href="#/coach/${who}" aria-label="Talk to Coach ${who==='jack'?'Jack — training and nutrition':'Jill — mentality and mindset'}"><img src="${A}${who==='jack'?'coaches-snow-approved.webp':'coaches-sunrise-approved.webp'}" alt="" aria-hidden="true"><span class="visually-hidden">COACH ${who.toUpperCase()} · ${i===0?'Training & nutrition':'Mentality & mindset'} · Talk to ${who==='jack'?'Jack':'Jill'}</span></a>`).join('')}</div>`)}
@@ -188,7 +243,7 @@ function privacy(){
  return section('Privacy notice',card(`
   <p>This notice explains how ravnsouth uses your information to run your account, Repbook and Arena.</p>
   <h3>Accounts and activity</h3>
-  <p>When you sign up, Supabase uses your email address and password to create and secure your account and to provide email verification and password resets. We use your display name and any profile details you add to identify your activity. We use posts, media, follows, comments, reps, views, challenges and awards to run the community, show results and send activity notifications. Check-in reflections are visible to you.</p>
+  <p>When you sign up, Supabase uses your email address and password to create and secure your account and to provide email verification and password resets. We use your display name and any profile details you add to identify your activity. We use posts, media, follows, comments, reps, views, challenges and awards to run the community, show results and send activity notifications. Check-in reflections and dashboard activity are visible to you. Other members can see your level when your profile is discoverable.</p>
   <h3>Who can see your information</h3>
   <p>Supabase provides sign-in, the database and media storage. Render hosts the website and handles connection requests. Signed-in members can see shared posts and challenge entries. Choosing a private profile hides your profile from the member directory. Content you have shared can still appear in the community.</p>
   <h3>How long information is used</h3>
@@ -199,7 +254,7 @@ function privacy(){
   ${accountLink}`));
 }
 function terms(){return section('Membership',card('<h3>Repbook and Arena</h3><p>A free account lets you share posts and enter challenges. Only upload media you have permission to share. Respect other members and their privacy.</p><p>Training and nutrition subscriptions are coming soon.</p>'+btn('/disclaimer','Site disclaimer',true)))}
-function notFound(){return pageHero('PAGE NOT FOUND','LET’S FIND YOUR WAY BACK.','The page you asked for is not part of this build.')+section('KEEP EXPLORING',card(`<h3>YOUR JOURNEY CONTINUES</h3>${btn('/','Back to home')}`))}
+function notFound(){return pageHero('PAGE NOT FOUND','LET’S FIND YOUR WAY BACK.','The page you asked for is not part of this build.')+section('KEEP EXPLORING',card(`<h3>YOUR JOURNEY CONTINUES</h3>${btn('/','Home')}`))}
 
 function stories(){return pageHero('MEMBER STORIES','PROGRESS DESERVES TO BE SEEN.','Share a short update about the steps that matter to you.')+section('YOUR STORIES',`${memberNotice()}<div class="grid cols2">${card(`<h3>SHARE A STORY</h3><label class="field"><span>Today’s story</span><textarea id="storyText" maxlength="300" rows="4" placeholder="A small win, a setback you learned from, or something you’re proud of..."></textarea></label><button class="btn" data-action="story">Add story</button><p class="mini">Visible only on this device during the demo; not posted to other members.</p>`)}${card(`<h3>STORYBOARD</h3>${s.stories.length?s.stories.slice(0,12).map(x=>`<div class="list-row"><div><span class="eyebrow">${esc(x.name)}</span><p>${esc(x.text)}</p><small>${new Date(x.at).toLocaleDateString('en-GB')}</small></div></div>`).join(''):'<p>Your first story will appear here.</p>'}`)}</div>`)}
 const demoCommunity=['Hannah P.','Mark D.','Emma L.','James K.'];
@@ -208,7 +263,7 @@ function buddies(){return pageHero('TRAINING BUDDIES','YOU DO NOT HAVE TO DO IT 
 function media(){return pageHero('MEDIA LIBRARY','STORIES. LESSONS. MOMENTUM.','A home for future RAVN South training, nutrition and mentality videos.')+section('EXPLORE THE COLLECTION',`<div class="grid cols3">${[['training','TRAINING TECHNIQUES','/fitness-programmes','Build confident, controlled movement.'],['nutrition','NUTRITION GUIDES','/nutrition','Learn sustainable meal routines.'],['mentality','THE FIVE-STEP PROGRAM','/mentality','Understand the purpose behind each step.']].map(([img,title,url,desc])=>card(`<img class="banner-img" src="${A+journeyImages[img]}" alt="${title}"><h3 style="margin-top:18px">${title}</h3><p>${desc}</p>${btn(url,'Explore related content',true)}`)).join('')}</div><p class="mini" style="margin-top:20px">Video uploads and streaming will be connected when you provide the approved media.</p>`)}
 function goals(){return pageHero('YOUR GOALS','SMALL STEPS. REAL DIRECTION.','Define achievable steps without sacrificing the balance of home, family, work and health.')+section('YOUR PERSONAL GOAL LIST',`${memberNotice()}<div class="grid cols2">${card(`<label class="field"><span>One achievable next step</span><input id="goalText" maxlength="150" placeholder="e.g. Get to the gym twice this week"></label><button class="btn" data-action="add-goal">Add a goal</button>`)}${card(`<h3>YOUR GOALS & REFLECTIONS</h3>${s.goals.length?s.goals.map((g,i)=>`<div class="list-row"><span>${esc(g)}</span><button class="btn-soft small" data-action="remove-goal" data-index="${i}" aria-label="Remove goal">Remove</button></div>`).join(''):'<p>Choose something you can realistically work towards.</p>'}`)}</div>`)}
 
-function render(){if(path()==='/achievements')history.replaceState(history.state,'','#/repbook/achievements');const p=path();let content=(p==='/'||p==='/home')?home():p.startsWith('/fitness-programmes')?fitnessRoute(p):p==='/training'?training():p.startsWith('/training/')?trainingDetail(p.split('/')[2]):p==='/nutrition'?nutrition():p==='/nutrition/rotation'?rotation():p==='/nutrition/snacks'?nutritionSnacks():p==='/nutrition/shopping'?nutritionShopping():p.startsWith('/nutrition/plan/')?nutritionDetail(p.split('/')[3],p.split('/')[4],p.split('/')[5]):p==='/mentality'?mentality():p.startsWith('/mentality/')?pillarDetail(p.split('/')[2]):p==='/repbook'?vault():p==='/repbook/feed'?feed():p==='/repbook/stories'?stories():p==='/repbook/gifting'?gifting():p==='/repbook/buddies'?buddies():p==='/repbook/challenges'?arena():p==='/repbook/achievements'?achievements():p==='/repbook/leaderboard'?arenaLeaderboard():p==='/hall-of-fame'?hall():p==='/challenges'?challenges():p==='/achievements'?achievements():p==='/dashboard'?dashboard():p==='/accountability'?accountability():p==='/membership'?membership():p==='/login'?login():p==='/signup'?signup():p==='/profile'?profile():p.startsWith('/profile/shared/')?sharedProfile(p.slice('/profile/shared/'.length)):p==='/groups'?groups():p==='/messages'?messages():p==='/coaches'?coaches():p.startsWith('/coach/')?coachPage(p.split('/')[2]):p==='/settings'?settings():p==='/results'?results():p==='/goals'?goals():p==='/media'?media():p==='/about'?about():p==='/contact'?contact():p==='/faq'?faq():p==='/privacy'?privacy():p==='/terms'?terms():p==='/disclaimer'?siteDisclaimer():notFound();$('#app').innerHTML=header()+`<main class="page">${p!=='/'?'<div class="wrap page-return"><button type="button" class="btn-outline" data-site-back>Back</button></div>':''}${/^\/(membership|fitness-programmes|training|nutrition)(\/|$)/.test(p)?'<div class="notice wrap"><strong>Coming soon</strong> · Training and nutrition subscriptions</div>':''}${disclaimerNotice(p)}${content}</main>`+footer();document.title=p==='/'?'ravnsouth | Training, Nutrition & Mentality':'ravnsouth · '+(p.startsWith('/profile/shared/')?'Member profile':p==='/'?'Home':p.split('/').filter(Boolean).map(x=>x.replace(/-/g,' ')).join(' / '));}
+function render(){if(path()==='/achievements')history.replaceState(history.state,'','#/repbook/achievements');const p=path();let content=(p==='/'||p==='/home')?home():p.startsWith('/fitness-programmes')?fitnessRoute(p):p==='/training'?training():p.startsWith('/training/')?trainingDetail(p.split('/')[2]):p==='/nutrition'?nutrition():p==='/nutrition/rotation'?rotation():p==='/nutrition/snacks'?nutritionSnacks():p==='/nutrition/shopping'?nutritionShopping():p.startsWith('/nutrition/plan/')?nutritionDetail(p.split('/')[3],p.split('/')[4],p.split('/')[5]):p==='/mentality'?mentality():p.startsWith('/mentality/')?pillarDetail(p.split('/')[2]):p==='/repbook'?vault():p==='/repbook/feed'?feed():p==='/repbook/stories'?stories():p==='/repbook/gifting'?gifting():p==='/repbook/buddies'?buddies():p==='/repbook/challenges'?arena():p==='/repbook/achievements'?achievements():p==='/repbook/leaderboard'?arenaLeaderboard():p==='/hall-of-fame'?hall():p==='/challenges'?challenges():p==='/achievements'?achievements():p==='/dashboard'?dashboard():p==='/accountability'?accountability():p==='/membership'?membership():p==='/login'?login():p==='/signup'?signup():p==='/profile'?profile():p.startsWith('/profile/shared/')?sharedProfile(p.slice('/profile/shared/'.length)):p==='/groups'?groups():p==='/messages'?messages():p==='/coaches'?coaches():p.startsWith('/coach/')?coachPage(p.split('/')[2]):p==='/settings'?settings():p==='/results'?results():p==='/goals'?goals():p==='/media'?media():p==='/about'?about():p==='/contact'?contact():p==='/faq'?faq():p==='/privacy'?privacy():p==='/terms'?terms():p==='/disclaimer'?siteDisclaimer():notFound();$('#app').innerHTML=header()+`<main class="page">${p!=='/'?pageBack(backFallback(p)):''}${/^\/(membership|fitness-programmes|training|nutrition)(\/|$)/.test(p)?'<div class="notice wrap"><strong>Coming soon</strong> · Training and nutrition subscriptions</div>':''}${disclaimerNotice(p)}${content}</main>`+footer();document.title=p==='/'?'ravnsouth | Training, Nutrition & Mentality':'ravnsouth · '+(p.startsWith('/profile/shared/')?'Member profile':p==='/'?'Home':p.split('/').filter(Boolean).map(x=>x.replace(/-/g,' ')).join(' / '));}
 // Route changes and scroll restoration are handled by navigation.js.
 document.addEventListener('click',e=>{let b=e.target.closest('[data-action]');if(!b)return;let action=b.dataset.action;if(action.startsWith('f-')&&fAction(b)){e.preventDefault();return}let v=id=>document.getElementById(id)?.value||'';
 if(action==='story'){let t=v('storyText').trim();if(!s.joined)return navto('/signup');if(t.length<3)return toast('Write a little more to share.');s.stories.unshift({name:s.name,text:t,at:new Date().toISOString()});save();render();toast('Story saved to this device');return}
@@ -217,7 +272,7 @@ if(action==='buddy'){if(!s.joined)return navto('/signup');let n=b.dataset.name;s
 if(action==='add-goal'){if(!s.joined)return navto('/signup');let t=v('goalText').trim();if(t.length<3)return toast('Add a short goal.');s.goals.unshift(t);save();render();toast('Goal saved');return}
 if(action==='remove-goal'){s.goals.splice(Number(b.dataset.index),1);save();render();toast('Goal removed');return}
 if(action==='menu'){$('#mainnav').classList.toggle('open');return}
-if(action==='log'){logAction(b.dataset.key,Number(b.dataset.points),b.dataset.label,b.dataset.key==='challenge'?'month':'day');return}
+if(action==='log'){logAction(b.dataset.key,b.dataset.label);return}
 if(action==='choose-program'){const plan=programData.find(x=>x.title===b.dataset.program);if(!plan||!programmeAllowed(legacyTrainingLevel(plan.slug)))return navto('/membership');s.program=b.dataset.program;save();toast('Programme selected');render();return}
 if(action==='leader-tab'){document.querySelectorAll('[data-action="leader-tab"]').forEach(el=>el.classList.toggle('active',el===b));$('#leaderrows').innerHTML=rankRows(b.dataset.period);return}
 if(action==='post'){let text=v('posttext').trim();if(!s.joined)return navto('/login');if(text.length<3)return toast('Write a little more before posting.');s.posts.unshift({id:'p'+Date.now(),name:s.name,text,likes:0,age:'Just now'});save();toast('Post added to your local demo feed');render();return}
@@ -227,7 +282,7 @@ if(action==='save-profile'){let name=v('profileName').trim();if(name.length<2)re
 if(action==='group'){let g=b.dataset.name;s.groups=s.groups.includes(g)?s.groups.filter(x=>x!==g):[...s.groups,g];save();toast(s.groups.includes(g)?'Joined your demo group':'Left demo group');render();return}
 if(action==='message'){let msg=v('messageText').trim();if(!msg)return toast('Write a message.');s.messages.push({from:'You',text:msg});save();render();return}
 if(action==='coach'||action==='coach-quick'){let who=b.dataset.who,q=action==='coach-quick'?b.dataset.question:v('coachInput').trim();if(!q)return toast('Write a question.');let box=$('#coachChat');if(box){let mine=document.createElement('div');mine.className='bubble me';mine.textContent=q;box.append(mine);let reply=document.createElement('div');reply.className='bubble';reply.textContent=coachReply(who,q);box.append(reply);box.scrollTop=box.scrollHeight;let inp=$('#coachInput');if(inp)inp.value=''}return}
-if(action==='checkin'){let text=v('checkin').trim();if(!text)return toast('Write a short reflection first.');s.checkinText=text;save();logAction('checkin',5,'Accountability check-in');return}
+if(action==='checkin'){let text=v('checkin').trim();if(!text)return toast('Write a short reflection first.');s.checkinText=text;save();logAction('checkin','Accountability check-in');return}
 if(action==='reflect'){let text=v('reflect').trim();if(text.length<3)return toast('Write one small step.');s.goals.unshift(b.dataset.pillar+': '+text);save();toast('Reflection saved to your local profile');return}
 if(action==='save-settings'){s.notices=$('#noticecheck').checked;s.visibility=v('settingsVisibility');save();toast('Preferences saved');render();return}
 if(action==='reset'){if(confirm('Clear your local RAVN South demo profile, posts and progress?')){s={...defaults};save();toast('Demo data reset');navto('/')}return}

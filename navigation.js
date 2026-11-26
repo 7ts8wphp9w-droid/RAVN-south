@@ -41,6 +41,7 @@
   };
   function show(pos) {
     originalRender();
+    route = location.hash;
     const main = document.querySelector('main');
     main.tabIndex = -1;
     main.focus({preventScroll: true});
@@ -56,10 +57,16 @@
   }
   navto = p => navigate('#' + p);
   document.addEventListener('click', event => {
-    if (event.target.closest('[data-site-back]')) {
+    const back = event.target.closest('[data-site-back]');
+    if (back) {
       event.preventDefault();
-      remember();
-      if (depth > 0) history.back(); else navigate('#/');
+      if (depth > 0) {
+        remember();
+        history.back();
+      } else {
+        history.replaceState(history.state, '', '#' + back.dataset.siteBack);
+        show({x: 0, y: 0});
+      }
       return;
     }
     const link = event.target.closest('a[href^="#/"]');

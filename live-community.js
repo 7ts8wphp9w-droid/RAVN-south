@@ -3,7 +3,7 @@ const community = (() => {
   const client = window.supabase.createClient('https://boalacuzelujpifbbptm.supabase.co','sb_publishable_WkJOLNBIHKTrU7Jyr1aLvg_tIt1JVtI');
   const bucket = client.storage.from('vault-media');
   let loginReward = null;
-  let user = null, ownerOverview = null;
+  let user = null, ownerOverview = null, profileCreatedDay = '';
   async function result(request) {
     const {data,error}=await request;
     if(error) throw new Error(error.message);
@@ -19,10 +19,26 @@ const community = (() => {
     }
   }
   async function snapshot(){
-    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts]=await Promise.all([
+    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id')]);
-    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,daily:loginReward};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id'),rows('vault_member_levels')]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,daily:loginReward};
+  }
+  async function dashboardActions(){
+    const accountId=identity(), actions=[];
+    for(let offset=0;;offset+=500){
+      const page=await result(client.from('vault_dashboard_actions').select('action,activity_day,period,points')
+        .eq('user_id',accountId).order('activity_day',{ascending:false}).order('action').range(offset,offset+499));
+      actions.push(...page);
+      if(page.length<500)return actions;
+    }
+  }
+  async function recordDashboardActions(actions){
+    const accountId=identity();
+    const rows=actions.map(({action,activity_day})=>({user_id:accountId,action,activity_day}));
+    if(!rows.length)return [];
+    return result(client.from('vault_dashboard_actions')
+      .upsert(rows,{onConflict:'user_id,action,period',ignoreDuplicates:true}).select('action'));
   }
   async function prepare(account){
     if(user?.id!==account.id)loginReward=null;
@@ -34,8 +50,10 @@ const community = (() => {
     const receipt=await result(client.rpc('arena_claim_login_badge'));
     if(user?.id!==account.id)return;
     if(receipt)loginReward=receipt;
-    const row=await result(client.from('vault_profiles').select('id').eq('id',identity()).maybeSingle());
+    const row=await result(client.from('vault_profiles').select('created_at').eq('id',identity()).maybeSingle());
+    if(user?.id!==account.id)return;
     if(!row)await result(client.from('vault_profiles').upsert({id:user.id,display_name:String(user.user_metadata?.display_name||'Member').trim().slice(0,45)||'Member'},{onConflict:'id',ignoreDuplicates:true}));
+    if(user?.id===account.id)profileCreatedDay=(row?.created_at||new Date().toISOString()).slice(0,10);
   }
   async function upload(file){
     const key=identity()+'/'+crypto.randomUUID();
@@ -45,7 +63,9 @@ const community = (() => {
   async function toggle(table,keys,currentlySet){
     await result(currentlySet?client.from(table).delete().match(keys):client.from(table).upsert(keys,{ignoreDuplicates:true}));
   }
-  return {client,identity,prepare,snapshot,upload,ownerOverview:()=>ownerOverview,clear(){loginReward=null;user=null;ownerOverview=null},
+  return {client,identity,prepare,snapshot,upload,dashboardActions,recordDashboardActions,
+    profileCreatedDay:()=>profileCreatedDay,ownerOverview:()=>ownerOverview,
+    clear(){loginReward=null;user=null;ownerOverview=null;profileCreatedDay=''},
     signed:async key=>(await result(bucket.createSignedUrl(key,3600))).signedUrl,
     removeFile:key=>result(bucket.remove([key])),
     profile:fields=>result(client.from('vault_profiles').update(fields).eq('id',identity())),

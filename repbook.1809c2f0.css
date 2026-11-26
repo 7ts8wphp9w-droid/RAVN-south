@@ -1,5 +1,7 @@
 /* Repbook: immediate access, quiet glass and recognisable line icons. */
-.repbook-social .topbar,.repbook-social .page-return,.repbook-social .page>.notice{display:none}
+.repbook-social .topbar,.repbook-social .page>.notice{display:none}
+.repbook-social .page-return{max-width:1120px;padding-bottom:0}
+@media(max-width:760px){.repbook-social .page-return{padding-inline:14px}}
 .repbook-social .repbook-section{padding:0 0 32px}.repbook-social .vs-shell{max-width:1120px}
 .rep-icon{width:22px;height:22px;flex:0 0 auto;vertical-align:middle}
 .repbook-social .rep-header{padding:18px 0 14px;gap:16px;align-items:center}.rep-brand{width:125px;flex-shrink:0}.rep-brand img{width:100%;height:auto;display:block}
@@ -116,7 +118,8 @@ body.gateway-active{margin:0;background:#030304;color:#f7f2fa;color-scheme:dark}
 body:has(.member-dash){--green:#d9b9e6;--accent:#c6a1d6;--muted:#bcadc4;background:#0d0a10;color:#f5eff8}
 body:has(.member-dash) :is(.topbar,.footer,.page){background:#0d0a10;border-color:#44324d}
 body:has(.member-dash) :is(.brand-logo){filter:grayscale(1) contrast(1.2)}
-body:has(.member-dash) :is(.notice,.page-return .btn-outline,.topactions .btn-soft){background:#211927;border-color:#513d5b;color:#d6c7de}
+body:has(.member-dash) :is(.notice,.topactions .btn-soft){background:#211927;border-color:#513d5b;color:#d6c7de}
+.page:has(.member-dash) > .page-return{max-width:680px;padding-inline:clamp(14px,4vw,30px);padding-bottom:0}
 .member-dash{max-width:680px;margin:auto;padding:20px clamp(14px,4vw,30px) 48px}
 .member-dash h1,.member-dash h2{font-family:'Cinzel',Georgia,serif;text-transform:uppercase;color:#e4caee;letter-spacing:.055em}
 .member-dash h1{font-size:clamp(26px,5vw,38px);margin:0}.member-dash header p{color:#d1c2d9;margin:4px 0 14px}

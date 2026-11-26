@@ -27,18 +27,19 @@ function decodeProfileSnapshot(encoded){
   if(!profileAwardKeys.every(k=>Number.isSafeInteger(value.counts[k])&&value.counts[k]>=0&&value.counts[k]<=100000000))return null;
   const badgeSteps=value.badgeSteps;
   if(badgeSteps!==undefined && (!Array.isArray(badgeSteps)||badgeSteps.length!==5||!badgeSteps.every(n=>Number.isSafeInteger(n)&&n>=0&&n<=100000000)))return null;
-  return {v:1,badgeSteps,name:value.name,date:value.date,counts:Object.fromEntries(profileAwardKeys.map(k=>[k,value.counts[k]]))};
+  const memberLevel=Number.isSafeInteger(value.level)&&value.level>=1?value.level:null;
+  return {v:1,badgeSteps,level:memberLevel,name:value.name,date:value.date,counts:Object.fromEntries(profileAwardKeys.map(k=>[k,value.counts[k]]))};
  }catch{return null;}
 }
 function sharedProfile(encoded){
  const profile=decodeProfileSnapshot(encoded);
  if(!profile)return pageHero('PROFILE UNAVAILABLE','THIS SHARE LINK IS INCOMPLETE.','Ask the member for a fresh profile link.');
- return pageHero('MEMBER PROFILE','DO IT. PROVE IT.','Every step is an achievement.')+section('PROFILE',`<article class="card shared-profile-card"><div class="profilehero">${avatar(profile.name)}<div><h3>${esc(profile.name)}</h3><span class="pill">RAVN South</span></div></div><p>Celebrating consistency across all five steps.</p><div class="profile-share-actions"><button class="btn-outline" data-share-profile>Share profile</button><p class="mini">Shared demo snapshot · ${esc(profile.date)}. These totals are not live or verified.</p></div>${snapshotGallery(profile)}</article>`);
+ return pageHero('MEMBER PROFILE','DO IT. PROVE IT.','Every step is an achievement.')+section('PROFILE',`<article class="card shared-profile-card"><div class="profilehero">${profilePhotoWithLevel(avatar(profile.name),profile.level)}<div><h3>${esc(profile.name)}</h3><span class="pill">RAVN South</span></div></div><p>Celebrating consistency across all five steps.</p><div class="profile-share-actions"><button class="btn-outline" data-share-profile>Share profile</button><p class="mini">Snapshot shared on ${esc(profile.date)}.</p></div>${snapshotGallery(profile)}</article>`);
 }
 async function shareProfileSnapshot(){
  const shared=path().startsWith('/profile/shared/');
  if(!shared&&s.visibility==='private'){toast('Your profile is private. Change visibility to share.');return;}
- const profile=shared?decodeProfileSnapshot(path().slice('/profile/shared/'.length)):{v:1,name:s.name,date:today(),badgeSteps:arenaTrophyData().steps.map(step=>step.badges),counts:profileAwardCounts()};
+ const profile=shared?decodeProfileSnapshot(path().slice('/profile/shared/'.length)):{v:1,name:s.name,date:today(),level:level(),badgeSteps:arenaTrophyData().steps.map(step=>step.badges),counts:profileAwardCounts()};
  if(!profile)return;
  const url=new URL(location.href);url.hash='/profile/shared/'+encodeProfileSnapshot(profile);
  const payload={title:profile.name+' · RAVN South',text:profile.name+'’s RAVN South award collection',url:url.href};

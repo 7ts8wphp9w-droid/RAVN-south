@@ -335,7 +335,25 @@ h1,h2,h3,h4,.brand,.nr-kicker,.btn,.btn-outline,.btn-soft,.nav a{
 .coach-head .coach-portrait.jack-snow-portrait{width:100%;height:auto;max-height:none;object-fit:contain;border-radius:8px;filter:none}
 
 /* Calm page navigation: menu stays in normal document flow. */
-.page-return{padding-top:16px;padding-bottom:16px}.page-return button{min-height:44px;min-width:88px}.topbar{position:relative;top:auto}html{scroll-behavior:auto}
+.topbar{position:relative;top:auto}html{scroll-behavior:auto}
+.page-return{padding-block:16px}
+.site-back{
+ display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:50%;
+ border:1px solid #b994ca80;background:linear-gradient(145deg,#ba95ce3d,#63467240);
+ color:#f3e3fa;box-shadow:inset 0 1px 1px #f7dfff36,0 4px 16px #0004;
+ backdrop-filter:blur(12px);cursor:pointer
+}
+.site-back svg{width:20px;height:20px}
+.site-back:hover{border-color:#ceafe2;background-color:#78528d50}
+.site-back:focus-visible{outline:2px solid #e6c8f3;outline-offset:3px}
+.gate > .page-return{position:absolute;top:0;left:0;width:auto}
+.profile-photo-with-level{position:relative;display:inline-flex;align-items:center;flex:0 0 auto;width:max-content}
+.profile-level{
+ position:absolute;top:0;right:-8px;z-index:1;pointer-events:none;white-space:nowrap;
+ padding:3px 6px;border:1px solid #b590c6;border-radius:999px;background:#2d2036;
+ color:#f3dffc;font:700 12px/1.2 system-ui,sans-serif;letter-spacing:.04em;font-variant-numeric:tabular-nums
+}
+.profile-dashboard-link{margin-inline-start:auto}
 
 .programme-access{display:inline-block;font-size:11px;line-height:1.4;padding:5px 9px;margin:8px 5px 8px 0;border-radius:5px;border:1px solid #67897b;letter-spacing:.04em}.programme-access.free{color:#bce8cb;background:#183c2d}.programme-access.paid{color:#efdab0;background:#352d20;border-color:#877247}.programme-levels .card{display:flex;flex-direction:column;align-items:flex-start}.programme-levels .btn-outline{margin-top:auto}.programme-lock{margin-bottom:24px}.programme-lock .btn,.programme-lock .btn-outline{margin:8px 8px 8px 0}.nr-variationoptions{flex-wrap:wrap}.nr-variationoptions button{font-size:12px;min-width:120px}
 
