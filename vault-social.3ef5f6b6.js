@@ -558,9 +558,28 @@ function editProfile(){const posts=data.posts.filter(item=>item.author==='me');o
 function ownerPanel(){
  const stats=community.ownerOverview();
  if(!stats)return '';
- return `<section class="card"><h3>Owner dashboard</h3><p>${Number(stats.members)} registered accounts</p><p>Last 7 days · ${Number(stats.posters7d)} members posted · ${Number(stats.posts7d)} posts, reels and stories</p></section>`;
+ return `<details class="card profile-owner-activity"><summary>Site activity</summary><p>${Number(stats.members)} registered accounts</p><p>Last 7 days · ${Number(stats.posters7d)} members posted · ${Number(stats.posts7d)} posts, reels and stories</p></details>`;
 }
-function profileView(id='me'){const own=id==='me',p=member(id);if(!own&&!people.some(x=>x.id===id))return wrap('<h2>Member not found</h2><a href="#/repbook/members">Browse members</a>');const posts=data.posts.filter(x=>x.author===id);return wrap(`${own?ownerPanel()+profileFriendStories():''}<div class="vs-profile-head card">${profilePhotoWithLevel(own?photoButton('vs-large'):portrait(id,'vs-large'),own?level():p.level)}<div><div class="eyebrow">${own?'MY PROFILE':'MEMBER'}</div><h2>${esc(p.name)}</h2><p>${esc(p.bio||'A little about your journey belongs here.')}</p><div class="vs-counts"><span><strong>${posts.length}</strong> posts</span><span><strong>${allFollows.filter(f=>f.followed_id===(own?community.identity():id)).length}</strong> followers</span><span><strong>${allFollows.filter(f=>f.follower_id===(own?community.identity():id)).length}</strong> following</span></div></div>${own?'<a href="#/dashboard" class="btn-outline profile-dashboard-link">Dashboard</a>':`<button class="btn" data-vs="follow" data-id="${id}" aria-pressed="${data.following.includes(id)}">${data.following.includes(id)?'Following':'Follow'}</button>`}</div>${own?`<div class="vs-layout"><button class="btn-outline" type="button" data-logout>Log out</button>${awardGallery()}</div>`:''}<h2 class="vs-posts-title">${own?'MY POSTS':'POSTS'}</h2>${posts.length?posts.map(post).join(''):'<div class="card"><p>Your posts and reels will appear here.</p><button class="btn-outline" data-vs="create">Create a post</button></div>'}`)}
+function profileView(id='me'){
+ const own=id==='me',p=member(id);
+ if(!own&&!people.some(x=>x.id===id))return wrap('<h2>Member not found</h2><a href="#/repbook/members">Browse members</a>');
+ const memberId=own?community.identity():id;
+ const posts=data.posts.filter(x=>x.author===id);
+ const followers=allFollows.filter(f=>f.followed_id===memberId).length;
+ const following=allFollows.filter(f=>f.follower_id===memberId).length;
+ return wrap(`${own?profileFriendStories():''}
+  <div class="vs-profile-head card">
+   ${profilePhotoWithLevel(own?photoButton('vs-large'):portrait(id,'vs-large'),own?level():p.level)}
+   <div><div class="eyebrow">${own?'MY PROFILE':'MEMBER'}</div><h2>${esc(p.name)}</h2>
+    <p>${esc(p.bio||'A little about your journey belongs here.')}</p>
+    <div class="vs-counts"><span><strong>${posts.length}</strong> posts</span><span><strong>${followers}</strong> followers</span><span><strong>${following}</strong> following</span></div>
+   </div>
+   ${own?'':`<button class="btn" data-vs="follow" data-id="${id}" aria-pressed="${data.following.includes(id)}">${data.following.includes(id)?'Following':'Follow'}</button>`}
+  </div>
+  ${own?profileProgress()+ownerPanel()+'<button class="btn-outline" type="button" data-logout>Log out</button>':''}
+  <h2 class="vs-posts-title">${own?'MY POSTS':'POSTS'}</h2>
+  ${posts.length?posts.map(post).join(''):'<div class="card"><p>Your posts and reels will appear here.</p><button class="btn-outline" data-vs="create">Create a post</button></div>'}`);
+}
 const originalRender=render;
 vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
 render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(backFallback(p))+custom;hydrate()};
