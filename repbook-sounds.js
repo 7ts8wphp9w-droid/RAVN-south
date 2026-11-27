@@ -1,5 +1,5 @@
 const repbookSounds = (() => {
-  const postingAsset = './assets/repbook-post-chime.wav';
+  const postingAsset = './assets/repbook-post-chime.wav?v=lower';
   const buffers = new Map();
   let context;
   let activeChimes = 0;
