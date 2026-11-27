@@ -10,7 +10,14 @@ const feelingCategories={
   {emoji:'😴',name:'Tired',tile:0},
   {emoji:'😣',name:'Sore',tile:1},
   {emoji:'⚡',name:'Energised',tile:2},
-  {emoji:'🛌',name:'Rest day',tile:3}
+  {emoji:'🛌',name:'Rest day',tile:3},
+  {emoji:'🤕',name:'Injured',sheet:2,tile:0},
+  {emoji:'🏋️',name:'Pumped',sheet:2,tile:4},
+  {emoji:'🔥',name:'Cut',sheet:2,tile:5},
+  {emoji:'🦾',name:'Extra strong',sheet:2,tile:6},
+  {emoji:'🪫',name:'Weak',sheet:2,tile:7},
+  {emoji:'🤸',name:'Warming up',sheet:2,tile:8},
+  {emoji:'🔋',name:'Recovered',sheet:2,tile:9}
  ],
  Nutrition:[
   {emoji:'🥗',name:'Fuelled',position:'100% 0%'},
@@ -18,7 +25,14 @@ const feelingCategories={
   {emoji:'🍔',name:'Cheat meal',tile:4},
   {emoji:'🤤',name:'Hungry',tile:5},
   {emoji:'😋',name:'Full',tile:6},
-  {emoji:'🍱',name:'Meal prep',tile:7}
+  {emoji:'🍱',name:'Meal prep',tile:7},
+  {emoji:'🍎',name:'Snack time',sheet:2,tile:10},
+  {emoji:'🥤',name:'Protein shake',sheet:2,tile:11},
+  {emoji:'☕',name:'Pre-workout',sheet:2,tile:12},
+  {emoji:'🍫',name:'Craving sweets',sheet:2,tile:13},
+  {emoji:'🍽️',name:'Balanced meal',sheet:2,tile:14},
+  {emoji:'🧑‍🍳',name:'Cooking',sheet:2,tile:15},
+  {emoji:'🥪',name:'Post-workout fuel',sheet:2,tile:16}
  ],
  Mentality:[
   {emoji:'😎',name:'Focused',position:'50% 100%'},
@@ -28,7 +42,13 @@ const feelingCategories={
   {emoji:'😰',name:'Stressed',tile:10},
   {emoji:'😌',name:'Calm',tile:11},
   {emoji:'🤩',name:'Motivated',tile:12},
-  {emoji:'😄',name:'Happy',tile:13}
+  {emoji:'😄',name:'Happy',tile:13},
+  {emoji:'😨',name:'Scared',sheet:2,tile:1},
+  {emoji:'🤯',name:'Exhilarated',sheet:2,tile:2},
+  {emoji:'🛋️',name:'Relaxed',sheet:2,tile:3},
+  {emoji:'😖',name:'Frustrated',sheet:2,tile:17},
+  {emoji:'🥹',name:'Grateful',sheet:2,tile:18},
+  {emoji:'😏',name:'Confident',sheet:2,tile:19}
  ]
 };
 const feelingChoices=Object.values(feelingCategories).flat();
@@ -641,9 +661,13 @@ function readFeeling(activity=''){
 }
 function feelingArt(choice, describe=false){
  const accessibility=describe?`role="img" aria-label="${choice.name}"`:'aria-hidden="true"';
- const expanded=choice.tile!==undefined;
- const position=expanded?`${(choice.tile%4)*100/3}% ${Math.floor(choice.tile/4)*100/3}%`:choice.position;
- return `<span class="rep-feeling-emoji${expanded?' rep-feeling-emoji-expanded':''}" ${accessibility} style="background-position:${position}"></span>`;
+ let position=choice.position, artClass='rep-feeling-emoji';
+ if(choice.tile!==undefined){
+  const columns=choice.sheet===2?5:4;
+  position=`${(choice.tile%columns)*100/(columns-1)}% ${Math.floor(choice.tile/columns)*100/3}%`;
+  artClass+=choice.sheet===2?' rep-feeling-emoji-more':' rep-feeling-emoji-expanded';
+ }
+ return `<span class="${artClass}" ${accessibility} style="background-position:${position}"></span>`;
 }
 function postContext(post){
  const {choice,text}=readFeeling(post.activity);
