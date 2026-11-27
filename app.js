@@ -101,7 +101,6 @@ function profileProgress(){
  return `<section class="profile-progress card" aria-labelledby="profile-progress-title">
  <h2 id="profile-progress-title">Your progress</h2>
  ${journalProgressMeter()}
- <p class="profile-journal-link">${btn('/repbook/journal','Open Journal',true)}</p>
  <a class="profile-awards-link" href="#/repbook/achievements" aria-label="Open badges and trophies">${awardGallery()}</a>
  <h3>Your shortcuts</h3><nav class="dash-tools" aria-label="Profile shortcuts">${tools.map(([glyph,label,url])=>`<a href="#${url}"><i>${icon(glyph)}</i>${label}</a>`).join('')}</nav>
  <a class="dash-membership" href="#/membership"><b>Training &amp; Nutrition subscription</b><small>Coming soon</small></a></section>`;
