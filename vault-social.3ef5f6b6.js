@@ -259,10 +259,13 @@ arenaTrophyData=()=>{
 };
 function repTotal(count){return count+' '+(count===1?'Rep':'Reps')}
 const tagRules='Each reel gets 24 hours to earn Reps from the moment it is posted. The tagged member has 24 hours from the tag to post a response. The most Reps wins a random gold trophy and 25 points. Equal scores are a draw. If nobody responds, the original reel earns its Reel Challenge milestone rewards.';
+const reelRules='<p>Earn each reward once per Reel Challenge video. Each badge and trophy is randomly picked from the five steps.</p>'+
+   '<ul><li>10 Reps · Badge</li><li>50 Reps · Bronze trophy</li><li>100 Reps · Bronze trophy and badge</li>'+
+   '<li>500 Reps · Silver trophy</li><li>1,000 Reps · Silver trophy and badge</li></ul>';
 function tagDate(value){
  return new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
 }
-function tagMember(id){return id===community.identity()?s.name:member(id).name}
+function tagMember(id){return id==='me'||id===community.identity()?s.name:member(id).name}
 function tagResult(match){
  if(match.outcome==='win')return tagMember(match.winner_id)+' won a gold trophy and 25 points.';
  if(match.outcome==='draw')return 'Draw.';
@@ -303,11 +306,7 @@ function challengeStatus(item){
   const winner=result.winner_id===community.identity()?s.name:member(result.winner_id).name;
   return `<p><strong>🥉 ${esc(winner)} won a bronze badge</strong> · ${result.winning_likes} ${result.winning_likes===1?'Rep':'Reps'} at close</p>`;
  }
- if(item.arenaMode==='reel'){
-  return '<p>Earn each reward once per Reel Challenge video. Each badge and trophy is randomly picked from the five steps.</p>'+
-   '<ul><li>10 Reps · Badge</li><li>50 Reps · Bronze trophy</li><li>100 Reps · Bronze trophy and badge</li>'+
-   '<li>500 Reps · Silver trophy</li><li>1,000 Reps · Silver trophy and badge</li></ul>';
- }
+ if(item.arenaMode==='reel')return reelRules;
  const close=item.author==='me'?`<button class="btn-outline" data-vs="close-challenge" data-id="${esc(item.id)}">Close challenge and award badge</button>`:'';
  return '<p>Give a Rep by tapping the dumbbell. The entry with the most Reps wins a bronze badge when the creator closes the challenge. A tie keeps the challenge open.</p>'+close;
 }
@@ -1325,6 +1324,19 @@ document.addEventListener('click',async e=>{
     const messages={'An entry needs at least one like before the challenge can close.':'An entry needs at least one Rep before the challenge can close.','The top entries are tied. Keep voting until one entry leads.':'The top entries are tied. Keep giving Reps until one entry leads.'};
     throw Error(messages[error.message]||error.message);
    }finally{b.disabled=false}
+  }else if(action==='challenge-rules'){
+   openDialog(`<h2>Challenge Rules</h2><h3>Reel Challenge</h3><p>Each reel gets 24 hours to earn Reps.</p>${reelRules}<h3>Tag Challenge</h3><p>${tagRules}</p>`,'Challenge Rules');
+  }else if(action==='challenge-reels'){
+   const items=data.posts.filter(item=>item.type==='reel'&&item.arenaMode&&mediaAvailable(item));
+   const previews=['reel','tag'].map(mode=>{
+    const matches=items.filter(item=>item.arenaMode===mode);
+    if(!matches.length)return '';
+    const heading=mode==='reel'?'Reel Challenge':'Tag Challenge';
+    const tiles=matches.map(item=>previewTile(item,'Reel by '+tagMember(item.author))).join('');
+    return `<section><h3>${heading}</h3><div class="vs-stories rep-challenge-previews">${tiles}</div></section>`;
+   }).join('');
+   openDialog('<h2>Challenge Reels</h2>'+(previews||'<p>No active challenge reels yet.</p>'),'Challenge Reels');
+   hydrate();
   }else if(action==='tag-match'){
    const match=tagMatches.get(id);
    if(match)openDialog('<h2>Tag Challenge</h2>'+tagCard(match),'Tag Challenge');
