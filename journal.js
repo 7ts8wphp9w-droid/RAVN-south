@@ -210,6 +210,7 @@ document.addEventListener('submit',async event=>{
   const button=form.querySelector('button');
   const status=form.querySelector('[role=status]');
   if(state.pending||journalWordCount(entry)<journalMinimumWords)return;
+  const chime=repbookSounds.posting();
   state.pending=key;
   button.disabled=true;
   form.elements.entry.readOnly=true;
@@ -220,6 +221,7 @@ document.addEventListener('submit',async event=>{
     const row=await community.recordJournalEntry(key,entry,step);
     if(journalStates.get(s)!==state)return;
     if(row){
+      chime?.();
       s.logs.unshift(journalProgressLog(row));
       s.points+=row.points;
       if(key==='training'&&state.workout){

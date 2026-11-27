@@ -2,7 +2,6 @@
 (() => {
 'use strict';
 const editor=window.repMediaEditor;
-const postChime='./assets/repbook-post-chime.wav';
 const feelingCategories={
  Fitness:[
   {emoji:'💪🏼',name:'Strong',position:'0% 0%'},
@@ -52,6 +51,8 @@ const feelingCategories={
  ]
 };
 const feelingChoices=Object.values(feelingCategories).flat();
+const feelingsByEmoji=new Map(feelingChoices.map(choice=>[choice.emoji,choice]));
+const feelingEmojiPattern=new RegExp('('+[...feelingsByEmoji.keys()].sort((a,b)=>b.length-a.length).join('|')+')','gu');
 let expiryAlerts=[], expiryTimer;
 let reactors=new Map();
 let results=new Map(),likeCounts=new Map();
@@ -383,10 +384,9 @@ function storyStrip({showPersonalMedia=true,showReels=false}={}){
  </div>`;
 }
 function manageMedia(kind){const items=kind==='story'?activeStories():data.posts.filter(x=>x.type==='reel'&&x.author==='me');if(!items.length){composer(kind);return}mediaActions(items[0])}
-function openMediaViewer(item, showComments=false, feedItems=null){
+function openMediaViewer(item, feedItems=null){
  const {id,type}=item;
  if(type!=='post' && item.at+DAY<=Date.now())return;
- const comments=()=>data.storyComments?.[id]||[];
  const caption=type==='post'?postBodyText(item):item.text;
  const dialog=openDialog(`${media(item)}
   ${caption?`<p class="vs-post-text">${mentionText(caption)}</p>`:''}${tagLinks(item)}
@@ -396,10 +396,7 @@ function openMediaViewer(item, showComments=false, feedItems=null){
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
   <div class="vs-post-tools story-tools">
    ${repControl(item)}
-   <button type="button" class="btn-soft" data-comments-toggle aria-expanded="false">Comment</button>
-  </div>
-  <div data-comments hidden><ul aria-label="${type} comments"></ul>
-   <form><label>Comment<input name="comment" required maxlength="500" autocomplete="off"></label><button class="btn-soft">Post comment</button></form>
+   <button type="button" class="btn-soft" data-open-comments aria-haspopup="dialog">Comment</button>
   </div>`,'View '+type);
  if(type==='story'||type==='reel'){
   dialog.dataset.mediaDeadline=item.at+DAY;
@@ -410,28 +407,120 @@ function openMediaViewer(item, showComments=false, feedItems=null){
  const video=dialog.querySelector('video');
  if(video){video.muted=type!=='reel';video.autoplay=true;video.loop=false}
  hydrate();
- const panel=dialog.querySelector('[data-comments]');
- const list=panel.querySelector('ul');
- function showComment(text){const li=document.createElement('li');li.textContent=text;list.append(li)}
- comments().forEach(showComment);
- const toggle=dialog.querySelector('[data-comments-toggle]');
- toggle.onclick=()=>{panel.hidden=!panel.hidden;toggle.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)panel.querySelector('input').focus()};
- installPlayback(dialog,item,video,panel,feedItems);
- if(showComments)toggle.click();
- panel.querySelector('form').onsubmit=async event=>{
-  event.preventDefault();
-  const input=event.currentTarget.elements.comment,text=input.value.trim();
-  if(!text)return;
-  const send=event.currentTarget.querySelector('button');if(send.disabled)return;send.disabled=true;
-  const chime=prepareSound(postChime);
-  try{await community.comment(id,text);(data.storyComments[id]??=[]).push(text)}
-  catch(e){toast(e.message);return}finally{send.disabled=false}
-  chime?.then(playSound).catch(()=>{});
-  showComment(text);input.value='';
+ dialog.querySelector('[data-open-comments]').onclick=event=>openCommentSheet(item,event.currentTarget);
+ installPlayback(dialog,item,video,feedItems);
+}
+function openCommentSheet(item,opener){
+ const viewer=opener.closest('.story-player');
+ const video=viewer?.querySelector('video');
+ const wasPlaying=video&&!video.paused;
+ if(wasPlaying)video.pause();
+ const sheet=document.createElement('dialog');
+ sheet.className='vs-dialog rep-comment-sheet';
+ sheet.setAttribute('aria-labelledby','rep-comment-title');
+ sheet.innerHTML=`<section class="rep-comment-panel">
+  <header class="rep-comment-heading"><h2 id="rep-comment-title">Comments</h2><button type="button" class="btn-soft" data-close-comments>Close</button></header>
+  <p class="rep-comment-empty">No comments yet.</p>
+  <ul class="rep-comment-list" aria-label="Comments"></ul>
+  <form class="rep-comment-form">
+   <div class="rep-comment-line">
+    <textarea name="comment" aria-label="Write a comment" placeholder="Write a comment…" required maxlength="500" rows="1" enterkeyhint="send"></textarea>
+    <button type="button" class="btn-soft rep-comment-emoji-toggle" aria-controls="rep-comment-emojis" aria-expanded="false">Emojis</button>
+    <button type="submit" class="btn-soft">Post</button>
+   </div>
+   <div id="rep-comment-emojis" hidden>${feelingPicker()}</div>
+   <p class="rep-comment-status" role="status"></p>
+  </form>
+ </section>`;
+ const list=sheet.querySelector('.rep-comment-list');
+ const empty=sheet.querySelector('.rep-comment-empty');
+ function appendComment(text){
+  const row=document.createElement('li');
+  row.innerHTML=text.split(feelingEmojiPattern).map(part=>{
+   const choice=feelingsByEmoji.get(part);
+   return choice?feelingArt(choice,true):esc(part);
+  }).join('');
+  list.append(row);
+  empty.hidden=true;
+ }
+ for(const text of data.storyComments[item.id]||[])appendComment(text);
+ const form=sheet.querySelector('form'),input=form.elements.comment,send=form.querySelector('[type=submit]');
+ const emojiBox=sheet.querySelector('#rep-comment-emojis'),emojiButton=sheet.querySelector('.rep-comment-emoji-toggle');
+ const status=sheet.querySelector('[role=status]');
+ const setEmojis=open=>{
+  emojiBox.hidden=!open;
+  emojiButton.setAttribute('aria-expanded',String(open));
  };
+ emojiButton.onclick=()=>{
+  if(send.disabled)return;
+  const opening=emojiBox.hidden;
+  if(opening)input.blur();
+  setEmojis(opening);
+  if(!opening)input.focus({preventScroll:true});
+ };
+ bindFeelingPicker(emojiBox,option=>{
+  const emoji=option.dataset.feeling,start=input.selectionStart,end=input.selectionEnd;
+  if(input.value.length-(end-start)+emoji.length>input.maxLength){
+   status.textContent='Your comment can be up to 500 characters.';
+   return;
+  }
+  input.setRangeText(emoji,start,end,'end');
+  status.textContent='';
+  setEmojis(false);
+  input.focus({preventScroll:true});
+ });
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  const text=input.value.trim();
+  if(!text||send.disabled)return;
+  const chime=repbookSounds.posting();
+  input.readOnly=true;
+  send.disabled=true;
+  setEmojis(false);
+  status.textContent='';
+  try{
+   await community.comment(item.id,text);
+   (data.storyComments[item.id]??=[]).push(text);
+   chime?.();
+   appendComment(text);
+   input.value='';
+   list.scrollTop=list.scrollHeight;
+  }catch(error){status.textContent=error.message}
+  finally{input.readOnly=false;send.disabled=false}
+ };
+ input.addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){
+   event.preventDefault();
+   form.requestSubmit();
+  }
+ });
+ const viewport=window.visualViewport,events=new AbortController();
+ const fitViewport=()=>{
+  const atBottom=list.scrollHeight-list.scrollTop<=list.clientHeight+2;
+  const height=viewport?.height||window.innerHeight;
+  sheet.style.setProperty('--rep-comments-top',Math.max(0,viewport?.offsetTop||0)+'px');
+  sheet.style.setProperty('--rep-comments-height',height+'px');
+  sheet.classList.toggle('rep-comment-keyboard',height<window.innerHeight-80);
+  if(atBottom)list.scrollTop=list.scrollHeight;
+ };
+ for(const name of ['resize','scroll'])viewport?.addEventListener(name,fitViewport,{signal:events.signal});
+ window.addEventListener('resize',fitViewport,{signal:events.signal});
+ sheet.querySelector('[data-close-comments]').onclick=()=>sheet.close();
+ sheet.onclick=event=>{if(event.target===sheet)sheet.close()};
+ sheet.addEventListener('close',()=>{
+  events.abort();
+  sheet.remove();
+  if(opener.isConnected)opener.focus({preventScroll:true});
+  if(wasPlaying&&viewer.open&&video.isConnected)video.play().catch(()=>{});
+ },{once:true});
+ document.body.append(sheet);
+ fitViewport();
+ sheet.showModal();
+ input.focus({preventScroll:true});
+ list.scrollTop=list.scrollHeight;
 }
 let viewerMuted=null;
-function installPlayback(dialog,item,video,panel,feedItems){
+function installPlayback(dialog,item,video,feedItems){
  const stories=[...activeStories(),...visibleFriendStories()];
  const items=feedItems||(item.type==='story'?stories:data.posts.filter(x=>x.type==='reel'&&x.arenaMode===item.arenaMode));
  const groups=authorGroups(items.some(x=>x.id===item.id)?items:[item]);
@@ -485,7 +574,7 @@ function installPlayback(dialog,item,video,panel,feedItems){
  }
  function move(step){
   if(queue.length===1){if(video){video.currentTime=0;video.play().catch(()=>{})}return}
-  openMediaViewer(queue[(index+step+queue.length)%queue.length],false,feedItems);
+  openMediaViewer(queue[(index+step+queue.length)%queue.length],feedItems);
  }
  dialog.onkeydown=e=>{
   if(e.target.matches('input,textarea,select'))return;
@@ -494,7 +583,7 @@ function installPlayback(dialog,item,video,panel,feedItems){
  };
  let start=null;
  dialog.addEventListener('touchstart',e=>{
-  start=e.touches.length===1&&!e.target.closest('[data-comments],input,textarea')?e.touches[0]:null;
+  start=e.touches.length===1&&!e.target.closest('button,input,textarea')?e.touches[0]:null;
  },{passive:true});
  dialog.addEventListener('touchcancel',()=>{start=null});
  dialog.addEventListener('touchend',e=>{
@@ -508,7 +597,7 @@ function installPlayback(dialog,item,video,panel,feedItems){
  const bar=timeline.children[position];
  function tick(now){
   if(!dialog.isConnected||!dialog.open)return;
-  if(!document.hidden&&panel.hidden&&!document.querySelector('.rep-member-list[open]')){
+  if(!document.hidden&&!document.querySelector('.rep-member-list[open],.rep-comment-sheet[open]')){
    elapsed+=Math.min(now-last,200);
    bar.value=video?(video.duration?video.currentTime/video.duration:0):elapsed/6000;
    if(video?video.ended:elapsed>=6000){elapsed=0;move(1)}
@@ -609,7 +698,7 @@ function showRepList(id,button){
  list.style.top=(anchor.top>=bounds.height+8?anchor.top-bounds.height-6:Math.max(8,Math.min(anchor.bottom+6,innerHeight-bounds.height-8)))+'px';
  list.querySelectorAll('[data-media]').forEach(loadTile);
 }
-function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${postContext(x)}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(postBodyText(x))}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
+function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${postContext(x)}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(postBodyText(x))}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment" aria-haspopup="dialog" data-id="${esc(x.id)}">Comment</button></div></article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
 function visibleFeedPosts(){
@@ -651,7 +740,7 @@ function profileView(id='me'){
 }
 const originalRender=render;
 vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
-render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(backFallback(p))+custom;hydrate()};
+render=function(){document.querySelector('.rep-comment-sheet[open]')?.close();document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(backFallback(p))+custom;hydrate()};
 function openDialog(html,label){document.querySelector('#vs-dialog')?.remove();const d=document.createElement('dialog');d.id='vs-dialog';d.className='vs-dialog';d.setAttribute('aria-label',label);d.innerHTML=`<button class="vs-close" type="button" aria-label="Close" data-vs="close">×</button>${html}`;document.body.append(d);d.addEventListener('close',()=>{if(!document.querySelector('#vs-dialog')||document.querySelector('#vs-dialog')===d){pending=null}d.remove()});d.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))d.close()});d.showModal();return d}
 const postColours=['Default','Plum','Slate','Midnight'];
 function readFeeling(activity=''){
@@ -669,6 +758,34 @@ function feelingArt(choice, describe=false){
  }
  return `<span class="${artClass}" ${accessibility} style="background-position:${position}"></span>`;
 }
+function feelingPicker(choice){
+ const category=Object.entries(feelingCategories).find(([,feelings])=>feelings.includes(choice))?.[0]||'Fitness';
+ return `<div class="rep-feeling-controls">
+  <div class="rep-feeling-categories" role="group" aria-label="Feeling categories">
+   ${Object.keys(feelingCategories).map(name=>`<button type="button" data-feeling-category="${name}" aria-pressed="${category===name}">${name}</button>`).join('')}
+  </div>
+  ${Object.entries(feelingCategories).map(([name,feelings])=>`
+   <div class="rep-feeling-picker" role="group" aria-label="${name} emojis" data-feeling-group="${name}" ${category===name?'':'hidden'}>
+    ${feelings.map(feeling=>`<button type="button" data-feeling="${feeling.emoji}" ${choice!==undefined?`aria-pressed="${choice===feeling}"`:''}>${feelingArt(feeling)}<span>${feeling.name}</span></button>`).join('')}
+   </div>`).join('')}
+ </div>`;
+}
+function bindFeelingPicker(picker,select){
+ picker.addEventListener('click',event=>{
+  const tab=event.target.closest('[data-feeling-category]');
+  if(tab){
+   for(const button of picker.querySelectorAll('[data-feeling-category]')){
+    button.setAttribute('aria-pressed',String(button===tab));
+   }
+   for(const group of picker.querySelectorAll('[data-feeling-group]')){
+    group.hidden=group.dataset.feelingGroup!==tab.dataset.feelingCategory;
+   }
+   return;
+  }
+  const option=event.target.closest('[data-feeling]');
+  if(option)select(option);
+ });
+}
 function postContext(post){
  const {choice,text}=readFeeling(post.activity);
  const context=[text||choice?.name,post.place&&'At '+post.place].filter(Boolean).join(' · ');
@@ -685,7 +802,6 @@ function composer(kind='post', existing=null, arenaMode=null) {
   const title=arenaMode?(arenaMode==='tag'?'Tag challenge':'Reel challenge'):(existing?'Edit ':'Create ')+kind;
   const prompt=arenaMode?'Set your challenge and describe the rules…':'Share a win or a training update…';
   const {choice,text:feelingText}=readFeeling(existing?.activity);
-  const category=Object.entries(feelingCategories).find(([,feelings])=>feelings.includes(choice))?.[0]||'Fitness';
   const dialog=openDialog(`<form id="vs-create" data-arena-mode="${arenaMode||existing?.arenaMode||''}" data-edit-id="${existing?.id||''}">
     <header class="rep-editor-head"><h2>${title}</h2><button class="rep-glass" type="submit">${existing?'Save':'Post'}</button></header>
     <div class="rep-author">${portrait('me')}<div><strong>${esc(s.name)}</strong>
@@ -706,15 +822,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
     <section class="rep-editor-tools" aria-label="Post options">
       <details data-post-context>
         <summary>${icon('activity')}Feeling</summary>
-        <div class="rep-feeling-controls">
-          <div class="rep-feeling-categories" role="group" aria-label="Feeling categories">
-            ${Object.keys(feelingCategories).map(name=>`<button type="button" data-feeling-category="${name}" aria-pressed="${category===name}">${name}</button>`).join('')}
-          </div>
-          ${Object.entries(feelingCategories).map(([name,feelings])=>`
-            <div class="rep-feeling-picker" role="group" aria-label="${name} emojis" data-feeling-group="${name}" ${category===name?'':'hidden'}>
-              ${feelings.map(feeling=>`<button type="button" data-feeling="${feeling.emoji}" aria-pressed="${choice===feeling}">${feelingArt(feeling)}<span>${feeling.name}</span></button>`).join('')}
-            </div>`).join('')}
-        </div>
+        ${feelingPicker(choice||null)}
         <input type="hidden" name="feelingEmoji" value="${choice?.emoji||''}">
         <label>How are you feeling?<input name="activity" maxlength="60" placeholder="Focused after training" value="${esc(feelingText)}"></label>
       </details>
@@ -733,20 +841,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
   editor.bind(form);
   bindMentions(dialog);
   const picker=form.querySelector('.rep-feeling-controls'),selection=form.elements.feelingEmoji;
-  picker.addEventListener('click',event=>{
-   const tab=event.target.closest('[data-feeling-category]');
-   if(tab){
-    const name=tab.dataset.feelingCategory;
-    for(const button of picker.querySelectorAll('[data-feeling-category]')){
-     button.setAttribute('aria-pressed',String(button===tab));
-    }
-    for(const group of picker.querySelectorAll('[data-feeling-group]')){
-     group.hidden=group.dataset.feelingGroup!==name;
-    }
-    return;
-   }
-   const option=event.target.closest('[data-feeling]');
-   if(!option)return;
+  bindFeelingPicker(picker,option=>{
    selection.value=selection.value===option.dataset.feeling?'':option.dataset.feeling;
    for(const button of picker.querySelectorAll('[data-feeling]')){
     button.setAttribute('aria-pressed',String(button.dataset.feeling===selection.value));
@@ -978,7 +1073,7 @@ document.addEventListener('submit',async event=>{
    const activity=kind==='post'?[form.elements.feelingEmoji.value,form.elements.activity.value.trim()].filter(Boolean).join(' '):'';
    const place=kind==='post'?form.elements.place.value.trim():'';
    if(!text&&!activity&&!place&&!pending&&!existing?.media)throw Error('Add an update or choose a file.');
-   const chime=existing?null:prepareSound(postChime);
+   const chime=existing?null:repbookSounds.posting();
    if(pending){await validateFile(pending,kind);uploaded=await community.upload(pending)}
    const fields={body:text||(!uploaded&&!existing?.media?[activity,place].filter(Boolean).join(' · '):''),media_path:uploaded||existing?.media||null,
     media_type:pending?(pending.type.startsWith('video/')?'video':'image'):existing?.media?(isVideoMedia(existing)?'video':'image'):null,
@@ -986,7 +1081,7 @@ document.addEventListener('submit',async event=>{
    if(!existing)Object.assign(fields,{kind,challenge:arena||null,reply_to:replyTo||null});
    await community.post(fields,existing?.id);
    committed=true;
-   chime?.then(playSound).catch(()=>{});
+   chime?.();
    if(uploaded&&existing?.media)await community.removeFile(existing.media).catch(()=>{});
    form.closest('dialog').close();replyTo=null;
   }
@@ -997,35 +1092,6 @@ document.addEventListener('submit',async event=>{
   const status=form.querySelector('#vs-error,#vs-save-status,[role=status]');if(status?.isConnected)status.textContent=message;else toast(message);
  }finally{button.disabled=false}
 });
-let repAudioContext;
-const soundBuffers=new Map();
-function prepareSound(asset){
- try{
-  const AudioEngine=window.AudioContext||window.webkitAudioContext;
-  if(!AudioEngine)return;
-  repAudioContext ||= new AudioEngine();
-  const ready=repAudioContext.resume();
-  if(!soundBuffers.has(asset)){
-   const buffer=fetch(asset).then(response=>{
-    if(!response.ok)throw Error('Sound unavailable');
-    return response.arrayBuffer();
-   }).then(bytes=>repAudioContext.decodeAudioData(bytes)).catch(()=>{
-    soundBuffers.delete(asset);
-    return null;
-   });
-   soundBuffers.set(asset,buffer);
-  }
-  return Promise.all([ready,soundBuffers.get(asset)]).then(([,buffer])=>buffer).catch(()=>null);
- }catch{return null}
-}
-function playSound(buffer){
- if(!buffer)return;
- const source=repAudioContext.createBufferSource();
- source.buffer=buffer;
- source.connect(repAudioContext.destination);
- source.onended=()=>source.disconnect();
- source.start();
-}
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-vs]');if(!b)return;const {vs:action,id,kind}=b.dataset;
  try{
@@ -1034,7 +1100,7 @@ document.addEventListener('click',async e=>{
    if(b.disabled)return;b.disabled=true;
    try{
     if(action==='follow'){await community.follow(id,data.following.includes(id));await refreshCommunity()}
-    else{const liked=data.likes.includes(id);const sound=liked?null:prepareSound('./assets/rep-coins.wav');await community.like(id,liked);if(sound)sound.then(playSound).catch(()=>{});likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
+    else{const liked=data.likes.includes(id);const sound=liked?null:repbookSounds.rep();await community.like(id,liked);sound?.();likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
       if(!liked)ids.push('me');
       reactors.set(id,ids);
       data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id!==id)return;
@@ -1044,11 +1110,14 @@ document.addEventListener('click',async e=>{
        if(count.dataset.id===id)count.textContent=String(likeCounts.get(id)||0);
       })}
    }finally{b.disabled=false}
-  }else if(['story','friend-story','view-reel','comment-reel','feed-video'].includes(action)){
+  }else if(action==='comment'){
+   const item=data.posts.find(x=>x.id===id);
+   if(item)openCommentSheet(item,b);
+  }else if(['story','friend-story','view-reel','feed-video'].includes(action)){
    const item=[...data.posts,...data.stories].find(x=>x.id===id);
    const feedVideos=action==='feed-video'&&document.querySelector('.repbook-feed')?
     visibleFeedPosts().filter(x=>x.media&&isVideoMedia(x)):null;
-   if(item)openMediaViewer(item,action==='comment-reel',feedVideos);
+   if(item)openMediaViewer(item,feedVideos);
   }else if(action==='close-challenge'){
    if(b.disabled||!confirm('Close this challenge now and award the leading entry a bronze badge?'))return;
    b.disabled=true;
