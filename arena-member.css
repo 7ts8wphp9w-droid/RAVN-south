@@ -63,7 +63,11 @@ body.arena-active{--bg:#070709;--card:#111014;--card2:#19131e;--edge:#49364f;--c
 
 /* Repbook brings community, challenges and achievements into one hub. */
 .repbook-summary{margin:0 0 32px}.repbook-summary .arena-member-card{max-width:none}
-.repbook-challenges .arena-upload-row{margin:20px 0}.repbook-challenges .arena-links{margin:20px 0 28px;flex-wrap:wrap}
+.repbook-challenges .arena-upload-row{margin:20px 0}.repbook-challenges .arena-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;margin:20px 0 28px;text-align:center}
+.repbook-challenges .arena-links > *{display:grid;place-items:center;min-height:44px;padding:4px}
+.repbook-challenges .arena-links button{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.repbook-challenges .arena-links > :hover{text-decoration:underline}
+.repbook-challenges .arena-links > :focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .repbook-feed-title{margin:28px 0 20px;color:#ddc4e8;font:700 22px Arial,sans-serif}
 .arena-active .vs-heading h1{color:#c4a2d1}.arena-active .vs-nav{border-color:#49364f}
 .arena-active .vs-nav a[aria-current=page],.arena-active .vs-filters button[aria-pressed=true]{background:#2a1d30;color:#e4d3eb;border-color:#70577a}
