@@ -269,12 +269,35 @@ journalLeaderboard=()=>{
 };
 const photoButton=(size='')=>`<button type="button" class="vs-photo-button ${size}" data-vs="edit-profile" aria-label="Edit profile" title="Edit profile">${portrait('me',size)}<span class="vs-photo-edit" aria-hidden="true">+</span></button>`;
 const glyphs={
+ comment:'<path d="M3 19.5 4.8 15.9A5 5 0 0 1 3 12V8a5 5 0 0 1 5-5h8a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H8z M6.5 10.5h3.2l1.5-2.9 2 5.3 1.5-2.4h2.8"/>',
+ share:'<path d="M12 3v12 M8.5 6.5 12 3l3.5 3.5 M4.5 13v6a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-6 M2 14.5v4 M22 14.5v4"/>',
  journal:'<path d="M7 3h13v18H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Zm0 0v18m4-12h5m-5 4h5"/>',
  gym:'<path d="M3 21h18 M4 21V4h16v17 M10 21v-5h4v5 M7 9h10 M8.5 7v4 M15.5 7v4"/>',
  filmReel:'<circle cx="11" cy="11" r="9"/><circle cx="11" cy="6.6" r="1.45"/><circle cx="6.6" cy="11" r="1.45"/><circle cx="15.4" cy="11" r="1.45"/><circle cx="11" cy="15.4" r="1.45"/><circle cx="11" cy="11" r=".6" fill="currentColor" stroke="none"/><path d="M11 20h7.5a3.5 3.5 0 0 0 3.5-3.5"/>',
  activity:'<path d="M2 12h5l3-8 4 16 3-8h5"/>',place:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',feed:'<path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',reels:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 6 3-6 3Z M4 7h16 M8 3l3 4 M14 3l3 4"/>',challenge:'<path d="M2 9 6 5h12l4 4-4 4H6L2 9Z M2 9l2 8 4 3h8l4-3 2-8 M8 14l1 5 M16 14l-1 5 M7 9h10"/>',people:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/>',profile:'<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',plus:'<path d="M12 4v16 M4 12h16"/>',photo:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',tag:'<path d="M3 3h8l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1"/>',trophy:'<path d="M8 3h8v7a4 4 0 0 1-8 0Z M8 5H4v3a4 4 0 0 0 4 4 M16 5h4v3a4 4 0 0 1-4 4 M12 14v6 M7 21h10"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',trash:'<path d="M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7"/>',check:'<path d="m4 12 5 5L20 6"/>'};
 const icon=name=>`<svg class="rep-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name]||glyphs.plus}</svg>`;
-const navBar=()=>`<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','gym'],['/repbook/reels','Reels','filmReel'],['/repbook/challenges','Arena','challenge'],['/repbook/journal','Journal','journal'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${path()===url||url==='/repbook'&&path()==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
+const sharedMediaPages={
+ posts:{type:'post',home:'/repbook',label:'Feed'},
+ reels:{type:'reel',home:'/repbook/reels',label:'Reels'},
+ stories:{type:'story',home:'/repbook',label:'Feed'},
+ challenges:{type:'challenge',home:'/repbook/challenges',label:'Arena'}
+};
+function sharedMediaRoute(route=path()){
+ const match=route.match(/^\/repbook\/(posts|reels|stories|challenges)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+ if(!match)return null;
+ const section=match[1].toLowerCase();
+ return {...sharedMediaPages[section],section,id:match[2].toLowerCase()};
+}
+function shareSection(item){
+ return item.arenaMode?'challenges':{post:'posts',reel:'reels',story:'stories'}[item.type];
+}
+function mediaAvailable(item){
+ return item.type==='post'||item.at+DAY>Date.now();
+}
+const navBar=()=>{
+ const active=sharedMediaRoute()?.home||path();
+ return `<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','gym'],['/repbook/reels','Reels','filmReel'],['/repbook/challenges','Arena','challenge'],['/repbook/journal','Journal','journal'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${active===url||url==='/repbook'&&active==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
+};
 function scheduleExpiry(){
  clearTimeout(expiryTimer);
  const timed=[...data.stories,...data.posts.filter(p=>p.type==='reel')];
@@ -386,7 +409,7 @@ function storyStrip({showPersonalMedia=true,showReels=false}={}){
 function manageMedia(kind){const items=kind==='story'?activeStories():data.posts.filter(x=>x.type==='reel'&&x.author==='me');if(!items.length){composer(kind);return}mediaActions(items[0])}
 function openMediaViewer(item, feedItems=null){
  const {id,type}=item;
- if(type!=='post' && item.at+DAY<=Date.now())return;
+ if(!mediaAvailable(item))return;
  const caption=type==='post'?postBodyText(item):item.text;
  const dialog=openDialog(`${media(item)}
   ${caption?`<p class="vs-post-text">${mentionText(caption)}</p>`:''}${tagLinks(item)}
@@ -394,10 +417,7 @@ function openMediaViewer(item, feedItems=null){
   ${item.arenaMode&&(!item.reply||item.arenaMode==='reel')?challengeStatus(item):''}
   ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
-  <div class="vs-post-tools story-tools">
-   ${repControl(item)}
-   <button type="button" class="btn-soft" data-open-comments aria-haspopup="dialog">Comment</button>
-  </div>`,'View '+type);
+  ${postActions(item,'story-tools')}`,'View '+type);
  if(type==='story'||type==='reel'){
   dialog.dataset.mediaDeadline=item.at+DAY;
   if(item.author!=='me')community.view(id).catch(error=>console.warn('View recording failed',error.message));
@@ -407,8 +427,58 @@ function openMediaViewer(item, feedItems=null){
  const video=dialog.querySelector('video');
  if(video){video.muted=type!=='reel';video.autoplay=true;video.loop=false}
  hydrate();
- dialog.querySelector('[data-open-comments]').onclick=event=>openCommentSheet(item,event.currentTarget);
  installPlayback(dialog,item,video,feedItems);
+}
+async function shareMedia(item,opener){
+ if(opener.disabled||!mediaAvailable(item))return;
+ const section=shareSection(item);
+ const page=sharedMediaPages[section];
+ const url=new URL('/',location.origin);
+ url.hash=`/repbook/${section}/${item.id}`;
+ const payload={title:`Repbook ${page.type}`,url:url.href};
+ const viewer=opener.closest('.story-player'),video=viewer?.querySelector('video');
+ const wasPlaying=video&&!video.paused;
+ if(wasPlaying)video.pause();
+ if(viewer)viewer.dataset.sharing='true';
+ opener.disabled=true;
+ function finish(){
+  opener.disabled=false;
+  if(viewer)delete viewer.dataset.sharing;
+  if(wasPlaying&&video.isConnected&&viewer.open)video.play().catch(()=>{});
+  if(opener.isConnected)opener.focus({preventScroll:true});
+ }
+ if(navigator.share){
+  try{
+   await navigator.share(payload);
+   finish();
+   return;
+  }catch(error){
+   if(error.name==='AbortError'){
+    finish();
+    return;
+   }
+  }
+ }
+ const dialog=document.createElement('dialog');
+ dialog.className='vs-dialog rep-share-dialog';
+ dialog.setAttribute('aria-label',`Share ${page.type}`);
+ dialog.innerHTML='<h2>Share link</h2><label class="field">Repbook link<input type="text" readonly></label><div class="vs-actions"><button type="button" class="btn" data-copy-link>Copy link</button><button type="button" class="btn-soft" data-close-share>Close</button></div><p role="status"></p>';
+ const field=dialog.querySelector('input'),status=dialog.querySelector('[role=status]');
+ field.value=url.href;
+ dialog.querySelector('[data-copy-link]').onclick=async()=>{
+  try{
+   await navigator.clipboard.writeText(field.value);
+   status.textContent='Link copied.';
+  }catch{
+   field.focus();
+   field.select();
+   status.textContent='Copy the selected link.';
+  }
+ };
+ dialog.querySelector('[data-close-share]').onclick=()=>dialog.close();
+ dialog.addEventListener('close',()=>{dialog.remove();finish()},{once:true});
+ document.body.append(dialog);
+ dialog.showModal();
 }
 function openCommentSheet(item,opener){
  const viewer=opener.closest('.story-player');
@@ -597,7 +667,7 @@ function installPlayback(dialog,item,video,feedItems){
  const bar=timeline.children[position];
  function tick(now){
   if(!dialog.isConnected||!dialog.open)return;
-  if(!document.hidden&&!document.querySelector('.rep-member-list[open],.rep-comment-sheet[open]')){
+  if(!document.hidden&&!dialog.dataset.sharing&&!document.querySelector('.rep-member-list[open],.rep-comment-sheet[open]')){
    elapsed+=Math.min(now-last,200);
    bar.value=video?(video.duration?video.currentTime/video.duration:0):elapsed/6000;
    if(video?video.ended:elapsed>=6000){elapsed=0;move(1)}
@@ -636,6 +706,14 @@ function feedMedia(item){
 function repControl(item){
  const owner=item.author==='me',count=likeCounts.get(item.id)||0;
  return `<button type="button" class="rep-react" data-vs="like" data-id="${esc(item.id)}" aria-pressed="${data.likes.includes(item.id)}" aria-label="Rep this ${esc(item.type)}"${owner?' data-rep-hold aria-haspopup="dialog" title="Hold to see who repped this"':''}>${repDumbbell()}<span data-rep-count data-id="${esc(item.id)}" aria-live="polite">${count}</span></button>`;
+}
+function postActions(item,extraClass=''){
+ const id=esc(item.id),type=sharedMediaPages[shareSection(item)].type;
+ return `<div class="vs-post-tools rep-post-actions ${extraClass}">
+  ${repControl(item)}
+  <button type="button" class="rep-post-action" data-vs="comment" data-id="${id}" aria-label="Comment" title="Comment" aria-haspopup="dialog">${icon('comment')}</button>
+  <button type="button" class="rep-post-action" data-vs="share" data-id="${id}" aria-label="Share ${type}" title="Share">${icon('share')}</button>
+ </div>`;
 }
 let hold=null,heldButton=null;
 function cancelHold(){
@@ -698,7 +776,7 @@ function showRepList(id,button){
  list.style.top=(anchor.top>=bounds.height+8?anchor.top-bounds.height-6:Math.max(8,Math.min(anchor.bottom+6,innerHeight-bounds.height-8)))+'px';
  list.querySelectorAll('[data-media]').forEach(loadTile);
 }
-function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${postContext(x)}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(postBodyText(x))}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment" aria-haspopup="dialog" data-id="${esc(x.id)}">Comment</button></div></article>`}
+function post(x){const p=member(x.author)||member('me');return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${postContext(x)}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(postBodyText(x))}</p>${tagLinks(x)}${feedMedia(x)}${postActions(x)}</article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
 function visibleFeedPosts(){
@@ -710,6 +788,14 @@ function reels(){
  return wrap(`${storyStrip({showPersonalMedia:false})}
   <div class="sectionhead"><div><h2>REELS</h2></div></div>
   <div class="vs-reels">${items.length?items.map(post).join(''):'<p class="mini">Nothing yet…</p>'}</div>`);
+}
+function sharedMediaView(route){
+ const item=[...data.posts,...data.stories].find(entry=>entry.id===route.id&&shareSection(entry)===route.section&&mediaAvailable(entry));
+ return wrap(`<section class="rep-shared-media">
+  <h2>Shared ${route.type}</h2>
+  ${item?post(item):'<p>This '+route.type+' is no longer available.</p>'}
+  <a class="btn-outline" href="#${route.home}">Back to ${route.label}</a>
+ </section>`);
 }
 function members(){return wrap(`<h2>FIND YOUR PEOPLE</h2><p>Follow other ravnsouth members.</p><div class="grid cols3">${people.map(p=>`<article class="card">${profilePhotoWithLevel(portrait(p.id,'vs-large'),p.level)}<h3>${esc(p.name)}</h3><p>${esc(p.bio)}</p><a href="#/repbook/member/${p.id}" class="btn-outline">View profile</a></article>`).join('')}</div>`)}
 function editProfile(){const posts=data.posts.filter(item=>item.author==='me');openDialog(`<form id="vs-profile" class="card"><h3>Edit profile</h3><button type="button" class="btn-outline" data-vs="choose-photo">Change profile picture</button>${posts.some(item=>item.type==='reel')?'<button type="button" class="btn-outline" data-vs="manage-reels">Manage reels</button>':''}${activeStories().length?'<button type="button" class="btn-outline" data-vs="manage-stories">Manage stories</button>':''}<label class="field"><span>Display name</span><input name="displayName" maxlength="45" required minlength="2" value="${esc(s.name)}"></label><label class="field"><span>My Bio</span><textarea name="bio" maxlength="300" rows="3">${esc(data.bio)}</textarea></label><label class="field"><span>Profile visibility preference</span><select name="visibility"><option value="members" ${s.visibility==='members'?'selected':''}>Members</option><option value="private" ${s.visibility==='private'?'selected':''}>Private</option></select></label><p class="mini">A private profile hides your name and bio from the member directory.</p><div class="vs-actions"><button class="btn" type="submit">Save changes</button><button class="btn-outline" type="button" data-logout>Log out</button>${profilePath?'<button class="btn-soft" type="button" data-vs="remove-photo">Remove photo</button>':''}</div><button type="button" class="btn-outline" data-vs="delete-account">Delete account</button><p id="vs-save-status" role="status"></p></form>`,"Edit profile")}
@@ -740,7 +826,19 @@ function profileView(id='me'){
 }
 const originalRender=render;
 vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
-render=function(){document.querySelector('.rep-comment-sheet[open]')?.close();document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(backFallback(p))+custom;hydrate()};
+render=function(){
+ document.querySelectorAll('.rep-comment-sheet[open],.rep-share-dialog[open]').forEach(dialog=>dialog.close());
+ document.querySelector('#vs-dialog')?.remove();
+ originalRender();
+ const p=path(),shared=sharedMediaRoute(p);
+ const custom=shared?sharedMediaView(shared):
+  p==='/repbook/reels'?reels():
+  p==='/repbook/members'?members():
+  p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;
+ if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(shared?.home||backFallback(p))+custom;
+ if(shared)document.title='ravnsouth · Shared '+shared.type;
+ hydrate();
+};
 function openDialog(html,label){document.querySelector('#vs-dialog')?.remove();const d=document.createElement('dialog');d.id='vs-dialog';d.className='vs-dialog';d.setAttribute('aria-label',label);d.innerHTML=`<button class="vs-close" type="button" aria-label="Close" data-vs="close">×</button>${html}`;document.body.append(d);d.addEventListener('close',()=>{if(!document.querySelector('#vs-dialog')||document.querySelector('#vs-dialog')===d){pending=null}d.remove()});d.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))d.close()});d.showModal();return d}
 const postColours=['Default','Plum','Slate','Midnight'];
 function readFeeling(activity=''){
@@ -1110,14 +1208,17 @@ document.addEventListener('click',async e=>{
        if(count.dataset.id===id)count.textContent=String(likeCounts.get(id)||0);
       })}
    }finally{b.disabled=false}
-  }else if(action==='comment'){
-   const item=data.posts.find(x=>x.id===id);
-   if(item)openCommentSheet(item,b);
+  }else if(action==='comment'||action==='share'){
+   const item=[...data.posts,...data.stories].find(x=>x.id===id);
+   if(item&&mediaAvailable(item)){
+    if(action==='comment')openCommentSheet(item,b);
+    else await shareMedia(item,b);
+   }
   }else if(['story','friend-story','view-reel','feed-video'].includes(action)){
    const item=[...data.posts,...data.stories].find(x=>x.id===id);
    const feedVideos=action==='feed-video'&&document.querySelector('.repbook-feed')?
     visibleFeedPosts().filter(x=>x.media&&isVideoMedia(x)):null;
-   if(item)openMediaViewer(item,feedVideos);
+   if(item)openMediaViewer(item,sharedMediaRoute()?[item]:feedVideos);
   }else if(action==='close-challenge'){
    if(b.disabled||!confirm('Close this challenge now and award the leading entry a bronze badge?'))return;
    b.disabled=true;
