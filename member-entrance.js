@@ -18,6 +18,7 @@
     document.body.classList.remove('repbook-social','arena-active');
     document.body.classList.add('gateway-active');
     const signup=route==='/signup';
+    const welcome=ready&&!issue&&!account&&!auth;
     let body;
     if(issue)body='<p role="alert">'+esc(issue)+'</p><button class="gate-primary" data-retry>Try again</button>';
     else if(!ready)body='<p role="status">Opening ravnsouth…</p>';
@@ -38,8 +39,8 @@
       <p role="status" id="gate-status"></p><button class="gate-primary">${signup?'Create free account':'Log in'}</button>
       ${signup?'':'<a href="#/forgot-password">Forgot password?</a>'}
       <a href="#/${signup?'login':'signup'}">${signup?'Already a member? Log in':'Create a free account'}</a></form>`;
-    else body='<p>Join Repbook and Arena with a free account.</p><nav><a class="gate-primary" href="#/signup">Sign up free</a><a class="gate-secondary" href="#/login">Log in</a></nav>';
-    document.getElementById('app').innerHTML=`<main class="gate">${auth?pageBack(forgot&&!recovering?'/login':'/'):''}<section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="ravnsouth">${body}</section>${!auth&&ready&&!issue?'<section class="gate-community"><a class="gate-book" href="#/repbook"><span><img class="repbook-app-symbol" src="./assets/repbook-app-symbol.svg" alt=""></span><strong>Repbook</strong></a>'+(account?'':'<a href="#/arena">Arena</a>')+'</section>':''}</main>`;
+    else body='<h1 class="welcome-title">Welcome to Ravnsouth</h1><p class="welcome-copy">Start your fitness journey at your own pace. Track your progress in your private Journal, share your wins in Repbook and take on challenges in Arena. Earn badges and trophies as you reach new milestones.</p><nav><a class="gate-primary" href="#/signup">Sign up free</a><a class="gate-secondary" href="#/login">Log in</a></nav>';
+    document.getElementById('app').innerHTML=`<main class="gate${welcome?' gate-welcome':''}">${auth?pageBack(forgot&&!recovering?'/login':'/'):''}<section class="gate-brand"><img src="./assets/ravn-angular-logo.png" alt="ravnsouth">${body}</section>${!auth&&ready&&!issue?'<section class="gate-community"><a class="gate-book" href="#/repbook"><span><img class="repbook-app-symbol" src="./assets/repbook-app-symbol.svg" alt=""></span><strong>Repbook</strong></a>'+(account?'':'<a class="gate-book gate-arena" href="#/arena"><strong>Arena</strong></a>')+'</section>':''}</main>`;
   };
   async function session(user){
     if(user?.id===account?.id && ready && !issue)return;
