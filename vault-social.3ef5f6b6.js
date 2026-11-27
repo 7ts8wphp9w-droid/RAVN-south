@@ -561,7 +561,7 @@ window.ravnRepbookWrap=wrap;
 function visibleFeedPosts(){
  return [...data.posts,...samples].filter(item=>item.type==='post'&&(tab!=='following'||data.following.includes(item.author)));
 }
-function home(){const items=visibleFeedPosts();return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip({showReels:true})}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
+function home(){const items=visibleFeedPosts();return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button>${storyStrip({showReels:true})}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
 function reels(){
  const items=data.posts.filter(x=>x.type==='reel');
  return wrap(`${storyStrip({showPersonalMedia:false})}
@@ -607,7 +607,7 @@ function postTools(existing){
   <details><summary>${icon('place')}Check in</summary><label>Place<input name="place" maxlength="80" placeholder="Enter a place" value="${esc(place)}"></label></details>
  </div>`;
 }
-function composer(kind='post', existing=null, arenaMode=null, startTagging=false) {
+function composer(kind='post', existing=null, arenaMode=null) {
   replyTo=null;uploadVersion++;
   uploadChecking=false;
   pending=null;
@@ -662,7 +662,7 @@ function composer(kind='post', existing=null, arenaMode=null, startTagging=false
   dialog.addEventListener('cancel',event=>{
     if(!screen.hidden){event.preventDefault();showTags(false)}
   });
-  if(startTagging || arenaMode==='tag')showTags(true);
+  if(arenaMode==='tag')showTags(true);
   hydrate();
 }
 function editableItem(kind,id){return (kind==='story'?activeStories():data.posts).find(x=>x.id===id&&x.author==='me'&&x.type===kind)}
@@ -933,7 +933,7 @@ document.addEventListener('click',async e=>{
    }finally{b.disabled=false}
   }else if(action==='respond'){
    const item=data.posts.find(x=>x.id===id);if(item){composer('reel',null,item.arenaMode);replyTo=id}
-  }else if(['create','tag-post','add-media'].includes(action))composer(kind||'post',null,null,action==='tag-post');
+  }else if(['create','add-media'].includes(action))composer(kind||'post');
   else if(action==='filter'){tab=b.dataset.tab;render()}
   else if(action==='close')b.closest('dialog')?.close();
   else if(action==='manage-reels'||action==='manage-stories')manageMedia(action==='manage-reels'?'reel':'story');
