@@ -2,6 +2,15 @@
 (() => {
 'use strict';
 const editor=window.repMediaEditor;
+const postChime='./assets/repbook-post-chime.wav';
+const feelingChoices=[
+ {emoji:'💪🏼',name:'Strong',position:'0% 0%'},
+ {emoji:'😤',name:'Fired up',position:'50% 0%'},
+ {emoji:'🥗',name:'Fuelled',position:'100% 0%'},
+ {emoji:'💧',name:'Hydrated',position:'0% 100%'},
+ {emoji:'😎',name:'Focused',position:'50% 100%'},
+ {emoji:'😁',name:'Proud',position:'100% 100%'}
+];
 let expiryAlerts=[], expiryTimer;
 let reactors=new Map();
 let results=new Map(),likeCounts=new Map();
@@ -337,8 +346,10 @@ function openMediaViewer(item, showComments=false, feedItems=null){
  const {id,type}=item;
  if(type!=='post' && item.at+DAY<=Date.now())return;
  const comments=()=>data.storyComments?.[id]||[];
- const dialog=openDialog(`${media(item)||`<p>${esc(item.text||'')}</p>`}
-  <p class="vs-post-text">${mentionText(item.text)}</p>${tagLinks(item)}
+ const caption=type==='post'?postBodyText(item):item.text;
+ const dialog=openDialog(`${media(item)}
+  ${caption?`<p class="vs-post-text">${mentionText(caption)}</p>`:''}${tagLinks(item)}
+  ${type==='post'?postContext(item):''}
   ${item.arenaMode&&(!item.reply||item.arenaMode==='reel')?challengeStatus(item):''}
   ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
@@ -371,8 +382,10 @@ function openMediaViewer(item, showComments=false, feedItems=null){
   const input=event.currentTarget.elements.comment,text=input.value.trim();
   if(!text)return;
   const send=event.currentTarget.querySelector('button');if(send.disabled)return;send.disabled=true;
+  const chime=prepareSound(postChime);
   try{await community.comment(id,text);(data.storyComments[id]??=[]).push(text)}
   catch(e){toast(e.message);return}finally{send.disabled=false}
+  chime?.then(playSound).catch(()=>{});
   showComment(text);input.value='';
  };
 }
@@ -555,7 +568,7 @@ function showRepList(id,button){
  list.style.top=(anchor.top>=bounds.height+8?anchor.top-bounds.height-6:Math.max(8,Math.min(anchor.bottom+6,innerHeight-bounds.height-8)))+'px';
  list.querySelectorAll('[data-media]').forEach(loadTile);
 }
-function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
+function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${postContext(x)}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(postBodyText(x))}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
 function visibleFeedPosts(){
@@ -600,12 +613,31 @@ vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
 render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(backFallback(p))+custom;hydrate()};
 function openDialog(html,label){document.querySelector('#vs-dialog')?.remove();const d=document.createElement('dialog');d.id='vs-dialog';d.className='vs-dialog';d.setAttribute('aria-label',label);d.innerHTML=`<button class="vs-close" type="button" aria-label="Close" data-vs="close">×</button>${html}`;document.body.append(d);d.addEventListener('close',()=>{if(!document.querySelector('#vs-dialog')||document.querySelector('#vs-dialog')===d){pending=null}d.remove()});d.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))d.close()});d.showModal();return d}
 const postColours=['Default','Plum','Slate','Midnight'];
+function readFeeling(activity=''){
+ const value=activity||'';
+ const choice=feelingChoices.find(({emoji})=>value===emoji||value.startsWith(emoji+' '));
+ return {choice,text:choice?value.slice(choice.emoji.length).trimStart():value};
+}
+function feelingArt(choice, describe=false){
+ const accessibility=describe?`role="img" aria-label="${choice.name}"`:'aria-hidden="true"';
+ return `<span class="rep-feeling-emoji" ${accessibility} style="background-position:${choice.position}"></span>`;
+}
+function postContext(post){
+ const {choice,text}=readFeeling(post.activity);
+ const context=[text||choice?.name,post.place&&'At '+post.place].filter(Boolean).join(' · ');
+ return context?`<p class="rep-context">${choice?feelingArt(choice,Boolean(text)):''}<span>${esc(context)}</span></p>`:'';
+}
+function postBodyText(post){
+ const {choice}=readFeeling(post.activity);
+ return choice&&post.text===[post.activity,post.place].filter(Boolean).join(' · ')?'':post.text;
+}
 function composer(kind='post', existing=null, arenaMode=null) {
   replyTo=null;uploadVersion++;
   uploadChecking=false;
   pending=null;
   const title=arenaMode?(arenaMode==='tag'?'Tag challenge':'Reel challenge'):(existing?'Edit ':'Create ')+kind;
   const prompt=arenaMode?'Set your challenge and describe the rules…':'Share a win or a training update…';
+  const {choice,text:feelingText}=readFeeling(existing?.activity);
   const dialog=openDialog(`<form id="vs-create" data-arena-mode="${arenaMode||existing?.arenaMode||''}" data-edit-id="${existing?.id||''}">
     <header class="rep-editor-head"><h2>${title}</h2><button class="rep-glass" type="submit">${existing?'Save':'Post'}</button></header>
     <div class="rep-author">${portrait('me')}<div><strong>${esc(s.name)}</strong>
@@ -626,7 +658,11 @@ function composer(kind='post', existing=null, arenaMode=null) {
     <section class="rep-editor-tools" aria-label="Post options">
       <details data-post-context>
         <summary>${icon('activity')}Feeling</summary>
-        <label>How are you feeling?<input name="activity" maxlength="60" placeholder="Focused after training" value="${esc(existing?.activity||'')}"></label>
+        <div class="rep-feeling-picker" role="group" aria-label="Feeling emojis">
+          ${feelingChoices.map(feeling=>`<button type="button" data-feeling="${feeling.emoji}" aria-pressed="${choice===feeling}">${feelingArt(feeling)}<span>${feeling.name}</span></button>`).join('')}
+        </div>
+        <input type="hidden" name="feelingEmoji" value="${choice?.emoji||''}">
+        <label>How are you feeling?<input name="activity" maxlength="60" placeholder="Focused after training" value="${esc(feelingText)}"></label>
       </details>
       <button type="button" class="rep-tag-open" aria-controls="rep-tag-screen">${icon('tag')}<span>@Mention</span></button>
       <details data-post-context>
@@ -639,8 +675,18 @@ function composer(kind='post', existing=null, arenaMode=null) {
       ${tagPicker(existing)}
     </section></form>`,title);
   dialog.classList.add('rep-editor');
-  editor.bind(dialog.querySelector('form'));
+  const form=dialog.querySelector('form');
+  editor.bind(form);
   bindMentions(dialog);
+  const picker=form.querySelector('.rep-feeling-picker'),selection=form.elements.feelingEmoji;
+  picker.addEventListener('click',event=>{
+   const option=event.target.closest('[data-feeling]');
+   if(!option)return;
+   selection.value=selection.value===option.dataset.feeling?'':option.dataset.feeling;
+   for(const button of picker.querySelectorAll('[data-feeling]')){
+    button.setAttribute('aria-pressed',String(button.dataset.feeling===selection.value));
+   }
+  });
   const format=dialog.querySelector('#vs-kind');
   const contextOptions=dialog.querySelectorAll('[data-post-context]');
   function syncPostTools(){
@@ -864,8 +910,10 @@ document.addEventListener('submit',async event=>{
    if(arena==='tag'&&!replyTo&&!tags.length)throw Error('Tag a member for this challenge.');
    if(arena&&!(pending?.type||existing?.mime||'').startsWith('video/'))throw Error('Choose a video for your challenge.');
    if(kind==='reel'&&!pending&&!existing?.media)throw Error('Choose a photo or video.');
-   const activity=kind==='post'?form.elements.activity.value.trim():'',place=kind==='post'?form.elements.place.value.trim():'';
+   const activity=kind==='post'?[form.elements.feelingEmoji.value,form.elements.activity.value.trim()].filter(Boolean).join(' '):'';
+   const place=kind==='post'?form.elements.place.value.trim():'';
    if(!text&&!activity&&!place&&!pending&&!existing?.media)throw Error('Add an update or choose a file.');
+   const chime=existing?null:prepareSound(postChime);
    if(pending){await validateFile(pending,kind);uploaded=await community.upload(pending)}
    const fields={body:text||(!uploaded&&!existing?.media?[activity,place].filter(Boolean).join(' · '):''),media_path:uploaded||existing?.media||null,
     media_type:pending?(pending.type.startsWith('video/')?'video':'image'):existing?.media?(isVideoMedia(existing)?'video':'image'):null,
@@ -873,6 +921,7 @@ document.addEventListener('submit',async event=>{
    if(!existing)Object.assign(fields,{kind,challenge:arena||null,reply_to:replyTo||null});
    await community.post(fields,existing?.id);
    committed=true;
+   chime?.then(playSound).catch(()=>{});
    if(uploaded&&existing?.media)await community.removeFile(existing.media).catch(()=>{});
    form.closest('dialog').close();replyTo=null;
   }
@@ -883,25 +932,33 @@ document.addEventListener('submit',async event=>{
   const status=form.querySelector('#vs-error,#vs-save-status,[role=status]');if(status?.isConnected)status.textContent=message;else toast(message);
  }finally{button.disabled=false}
 });
-let repAudioContext, repSoundBuffer;
-function prepareRepSound(){
+let repAudioContext;
+const soundBuffers=new Map();
+function prepareSound(asset){
  try{
   const AudioEngine=window.AudioContext||window.webkitAudioContext;
   if(!AudioEngine)return;
   repAudioContext ||= new AudioEngine();
   const ready=repAudioContext.resume();
-  repSoundBuffer ||= fetch('./assets/rep-coins.wav').then(response=>{
-   if(!response.ok)throw Error('Sound unavailable');
-   return response.arrayBuffer();
-  }).then(bytes=>repAudioContext.decodeAudioData(bytes)).catch(()=>{repSoundBuffer=null;return null});
-  return Promise.all([ready,repSoundBuffer]).then(([,buffer])=>buffer).catch(()=>null);
+  if(!soundBuffers.has(asset)){
+   const buffer=fetch(asset).then(response=>{
+    if(!response.ok)throw Error('Sound unavailable');
+    return response.arrayBuffer();
+   }).then(bytes=>repAudioContext.decodeAudioData(bytes)).catch(()=>{
+    soundBuffers.delete(asset);
+    return null;
+   });
+   soundBuffers.set(asset,buffer);
+  }
+  return Promise.all([ready,soundBuffers.get(asset)]).then(([,buffer])=>buffer).catch(()=>null);
  }catch{return null}
 }
-function playRepSound(buffer){
+function playSound(buffer){
  if(!buffer)return;
  const source=repAudioContext.createBufferSource();
  source.buffer=buffer;
  source.connect(repAudioContext.destination);
+ source.onended=()=>source.disconnect();
  source.start();
 }
 document.addEventListener('click',async e=>{
@@ -912,7 +969,7 @@ document.addEventListener('click',async e=>{
    if(b.disabled)return;b.disabled=true;
    try{
     if(action==='follow'){await community.follow(id,data.following.includes(id));await refreshCommunity()}
-    else{const liked=data.likes.includes(id);const sound=liked?null:prepareRepSound();await community.like(id,liked);if(sound)sound.then(playRepSound).catch(()=>{});likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
+    else{const liked=data.likes.includes(id);const sound=liked?null:prepareSound('./assets/rep-coins.wav');await community.like(id,liked);if(sound)sound.then(playSound).catch(()=>{});likeCounts.set(id,Math.max(0,(likeCounts.get(id)||0)+(liked?-1:1)));const ids=(reactors.get(id)||[]).filter(person=>person!=='me');
       if(!liked)ids.push('me');
       reactors.set(id,ids);
       data.likes=liked?data.likes.filter(x=>x!==id):[...data.likes,id];document.querySelectorAll('[data-vs="like"]').forEach(el=>{if(el.dataset.id!==id)return;
