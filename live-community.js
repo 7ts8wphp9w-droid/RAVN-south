@@ -22,10 +22,10 @@ const community = (() => {
     }
   }
   async function snapshot(){
-    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels]=await Promise.all([
+    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,tagMatches]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id','user_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id'),rows('vault_member_levels')]);
-    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,daily:loginReward};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id'),rows('vault_member_levels'),rows('arena_tag_matches','challenge_id')]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,tagMatches,daily:loginReward};
   }
   async function journalProgress(){
     const accountId=identity(), actions=[];
@@ -101,6 +101,7 @@ const community = (() => {
     like:(id,set)=>toggle('vault_likes',{post_id:id,user_id:identity()},set),
     follow:(id,set)=>toggle('vault_follows',{followed_id:id,follower_id:identity()},set),
     comment:(id,body)=>result(client.from('vault_comments').insert({post_id:id,user_id:identity(),body})),
+    tagReel:(reel,opponent)=>result(client.rpc('arena_tag_existing_reel',{reel,opponent})),
     closeChallenge:id=>result(client.from('arena_challenge_results').insert({challenge_id:id}))
   };
 })();

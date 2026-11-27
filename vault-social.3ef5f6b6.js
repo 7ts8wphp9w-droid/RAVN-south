@@ -55,7 +55,7 @@ const feelingsByEmoji=new Map(feelingChoices.map(choice=>[choice.emoji,choice]))
 const feelingEmojiPattern=new RegExp('('+[...feelingsByEmoji.keys()].sort((a,b)=>b.length-a.length).join('|')+')','gu');
 let expiryAlerts=[], expiryTimer;
 let reactors=new Map();
-let results=new Map(),likeCounts=new Map();
+let results=new Map(),likeCounts=new Map(),tagMatches=new Map();
 const DAY=86400000;
 let people=[], allFollows=[], ownBadges=[], scores=[], replyTo=null, profilePath=null, feedVersion=0;
 let data={bio:'',photo:'',following:[],likes:[],posts:[],stories:[],storyComments:{}};
@@ -208,6 +208,9 @@ window.loadCommunity=async()=>{
  scheduleExpiry();
  data.likes=live.likes.filter(l=>l.user_id===me).map(l=>l.post_id);
  results=new Map(live.results.map(row=>[row.challenge_id,row]));
+ tagMatches=new Map(live.tagMatches.map(row=>[row.challenge_id,row]));
+ s.tagWinPoints=25*live.tagMatches.filter(match=>match.winner_id===me).length;
+ s.points=s.logs.reduce((total,log)=>total+log.points,s.tagWinPoints);
  likeCounts=new Map();
 
  reactors=new Map();
@@ -242,10 +245,59 @@ arenaTrophyData=()=>{
   step.silver+=silver;
   collection.total+=bronze+silver;
  }
+ for(const match of tagMatches.values()){
+  if(match.winner_id!==community.identity())continue;
+  const step=collection.steps.find(step=>step.name===match.gold_step);
+  if(step){step.gold++;collection.total++}
+ }
+ collection.goldReady=collection.steps.every(step=>step.gold>=10);
+ if(!collection.platinum&&collection.goldReady&&collection.monthlyLeader){
+  collection.platinum=true;
+  collection.total++;
+ }
  return collection;
 };
 function repTotal(count){return count+' '+(count===1?'Rep':'Reps')}
+const tagRules='Each reel gets 24 hours to earn Reps from the moment it is posted. The tagged member has 24 hours from the tag to post a response. The most Reps wins a random gold trophy and 25 points. Equal scores are a draw. If nobody responds, the original reel earns its Reel Challenge milestone rewards.';
+function tagDate(value){
+ return new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
+}
+function tagMember(id){return id===community.identity()?s.name:member(id).name}
+function tagResult(match){
+ if(match.outcome==='win')return tagMember(match.winner_id)+' won a gold trophy and 25 points.';
+ if(match.outcome==='draw')return 'Draw.';
+ if(match.outcome==='cancelled')return 'Challenge cancelled.';
+ if(match.outcome==='no_response'){
+  const n=match.creator_reps;
+  const badges=[10,100,1000].filter(x=>n>=x).length;
+  const bronze=[50,100].filter(x=>n>=x).length;
+  const silver=[500,1000].filter(x=>n>=x).length;
+  const awards=[badges&&(badges+' '+(badges===1?'badge':'badges')),bronze&&(bronze+' bronze'),silver&&(silver+' silver')].filter(Boolean);
+  return 'No response. '+repTotal(n)+'. '+(awards.length?'Reel Challenge rewards earned: '+awards.join(', ')+'.':'No Reel Challenge milestone reached.');
+ }
+ return match.response_id?'Both reels posted.':'Waiting for a response.';
+}
+function tagCard(match){
+ const posts=[match.challenge_id,match.response_id].map(id=>data.posts.find(x=>x.id===id));
+ const dates=[match.creator_expires_at,match.response_expires_at];
+ const scores=[match.creator_reps,match.response_reps];
+ const canRespond=match.challenger_id===community.identity()&&!match.response_id&&!match.resolved_at&&Date.parse(match.reply_deadline)>Date.now();
+ const entries=[match.creator_id,match.challenger_id].map((id,i)=>{
+  const reel=posts[i],count=scores[i]??(reel?likeCounts.get(reel.id)||0:null);
+  const detail=dates[i]?(Date.parse(dates[i])>Date.now()?'Voting ends ':'Voting ended ')+tagDate(dates[i]):'Response due '+tagDate(match.reply_deadline);
+  const link=reel?` <button type="button" class="btn-soft" data-vs="view-reel" data-id="${esc(reel.id)}">Watch reel</button>`:'';
+  return `<li><strong>${esc(tagMember(id))}</strong> · ${esc(detail)}${count===null?'':' · '+repTotal(count)}${link}</li>`;
+ }).join('');
+ return `<p><strong>${esc(tagResult(match))}</strong></p><ul>${entries}</ul><p class="mini">${tagRules}</p>${canRespond?`<button class="btn" data-vs="respond" data-id="${esc(match.challenge_id)}">Post your response</button>`:''}`;
+}
+window.ravnTagMatches=()=>{
+ const recent=[...tagMatches.values()].filter(match=>!match.resolved_at||Date.parse(match.resolved_at)>Date.now()-7*DAY)
+  .sort((a,b)=>Date.parse(b.invited_at)-Date.parse(a.invited_at));
+ return recent.map(match=>`<article class="card"><h3>Tag Challenge</h3>${tagCard(match)}</article>`).join('');
+};
 function challengeStatus(item){
+ const match=tagMatches.get(item.reply||item.id);
+ if(match)return '<p class="mini">'+tagRules+'</p><button class="btn-outline" data-vs="tag-match" data-id="'+esc(match.challenge_id)+'">View Tag Challenge</button>';
  const result=results.get(item.id);
  if(result){
   const winner=result.winner_id===community.identity()?s.name:member(result.winner_id).name;
@@ -319,11 +371,19 @@ function activityAlerts(){
   key:'follow/'+row.follower_id+'/'+(row.created_at||''),actor:row.follower_id,
   message:'followed you',time:Date.parse(row.created_at)||0
  }));
- const tags=[...data.posts,...data.stories].filter(item=>item.author!=='me'&&item.tags.includes(me)).map(item=>({
+ const tags=[...data.posts,...data.stories].filter(item=>item.author!=='me'&&item.tags.includes(me)&&!tagMatches.has(item.id)).map(item=>({
   key:'tag/'+item.id,actor:item.author,id:item.id,time:item.at,
   message:item.arenaMode&&!item.reply?'challenged you in the Arena':'tagged you in a '+item.type
  }));
- return [...follows,...tags,...expiryAlerts].sort((a,b)=>b.time-a.time);
+ const matches=[...tagMatches.values()].filter(m=>m.creator_id===me||m.challenger_id===me).flatMap(m=>{
+  const base={matchId:m.challenge_id};
+  const invited={...base,key:'tag-match/'+m.challenge_id,time:Date.parse(m.invited_at),
+   message:m.creator_id===me?'Tag Challenge sent to '+tagMember(m.challenger_id)+'.':tagMember(m.creator_id)+' challenged you. Reply by '+tagDate(m.reply_deadline)+'.'};
+  const response=m.response_id?{...base,key:'tag-reply/'+m.challenge_id,time:Date.parse(m.response_expires_at)-DAY,message:'Tag Challenge response posted. Both reels get 24 hours.'}:null;
+  const result=m.resolved_at?{...base,key:'tag-result/'+m.challenge_id,time:Date.parse(m.resolved_at),message:tagResult(m)}:null;
+  return [invited,response,result].filter(Boolean);
+ });
+ return [...follows,...tags,...matches,...expiryAlerts].sort((a,b)=>b.time-a.time);
 }
 function readAlertKeys(){
  try{return new Set(JSON.parse(localStorage.getItem('repbook-alerts/'+community.identity())||'[]'))}catch{return new Set()}
@@ -335,6 +395,7 @@ function alertsButton(){
 function showAlerts(){
  const rows=activityAlerts(),read=readAlertKeys();
  const list=rows.map(row=>{
+  if(row.matchId)return `<p><button class="btn-outline" data-vs="tag-match" data-id="${esc(row.matchId)}">${esc(row.message)}${read.has(row.key)?'':' · New'}</button></p>`;
   if(!row.actor)return '<p>'+esc(row.message)+(read.has(row.key)?'':' · New')+'</p>';
   const label=esc(member(row.actor).name)+' '+esc(row.message)+(read.has(row.key)?'':' · New');
   return row.id?`<p><button class="btn-outline" data-vs="view-reel" data-id="${esc(row.id)}">${label}</button></p>`:
@@ -414,8 +475,9 @@ function openMediaViewer(item, feedItems=null){
  const dialog=openDialog(`${media(item)}
   ${caption?`<p class="vs-post-text">${mentionText(caption)}</p>`:''}${tagLinks(item)}
   ${type==='post'?postContext(item):''}
-  ${item.arenaMode&&(!item.reply||item.arenaMode==='reel')?challengeStatus(item):''}
-  ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
+  ${item.arenaMode&&(!item.reply||item.arenaMode==='reel'||tagMatches.has(item.reply))?challengeStatus(item):''}
+  ${type==='reel'&&item.author==='me'&&!item.arenaMode&&isVideoMedia(item)?'<button class="btn-outline" data-vs="tag-existing" data-id="'+esc(id)+'">Tag Challenge</button>':''}
+  ${item.arenaMode&&!item.reply&&!results.has(id)&&!tagMatches.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
   ${postActions(item,'story-tools')}`,'View '+type);
  if(type==='story'||type==='reel'){
@@ -723,7 +785,7 @@ function bindMentions(dialog){
  dialog.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))dialog.close()});
 }
 function tagLinks(item){const ids=cleanTags(item.tags);return ids.length?`<p class="vs-tags">With ${ids.map(id=>`<a href="#/repbook/member/${id}">@${esc(member(id).name)}</a>`).join(' ')}</p>`:''}
-function tagPicker(item){const ids=cleanTags(item?.tags);return `<fieldset class="vs-tag-picker"><legend>Tag people</legend><label class="rep-mention-search">Search members<input type="search" data-mention-search placeholder="Name or @username" autocomplete="off"></label><p data-no-mentions hidden>No matching members.</p><p class="mini">Choose members to tag. </p>${people.map(p=>`<label data-member-option="${p.id}"><input type="checkbox" name="taggedMember" value="${p.id}" ${ids.includes(p.id)?'checked':''}><span>${esc(p.name)}</span></label>`).join('')}</fieldset>`}
+function tagPicker(item,single=false){const ids=cleanTags(item?.tags);return `<fieldset class="vs-tag-picker"><legend>Tag people</legend><label class="rep-mention-search">Search members<input type="search" data-mention-search placeholder="Name or @username" autocomplete="off"></label><p data-no-mentions hidden>No matching members.</p><p class="mini">Choose members to tag. </p>${people.map(p=>`<label data-member-option="${p.id}"><input type="${single?'radio':'checkbox'}" name="taggedMember" value="${p.id}" ${ids.includes(p.id)?'checked':''}><span>${esc(p.name)}</span></label>`).join('')}</fieldset>`}
 
 function media(x){if(!x.media)return '';return editor.wrap(isVideoMedia(x)?`<video class="vs-media" data-media="${esc(x.media)}" controls playsinline preload="metadata" aria-label="Video by ${esc(member(x.author)?.name||s.name)}"></video>`:`<img class="vs-media" data-media="${esc(x.media)}" alt="${esc(x.text||'Member photo')}">`,x.effects)}
 function feedMedia(item){
@@ -928,12 +990,12 @@ function postBodyText(post){
  const {choice}=readFeeling(post.activity);
  return choice&&post.text===[post.activity,post.place].filter(Boolean).join(' · ')?'':post.text;
 }
-function composer(kind='post', existing=null, arenaMode=null) {
-  replyTo=null;uploadVersion++;
+function composer(kind='post', existing=null, arenaMode=null, responseTo=null) {
+  replyTo=responseTo;uploadVersion++;
   uploadChecking=false;
   pending=null;
   const title=arenaMode?(arenaMode==='tag'?'Tag challenge':'Reel challenge'):(existing?'Edit ':'Create ')+kind;
-  const prompt=arenaMode?'Set your challenge and describe the rules…':'Share a win or a training update…';
+  const prompt=arenaMode==='tag'?'Add a caption to your challenge…':arenaMode?'Describe your challenge…':'Share a win or a training update…';
   const {choice,text:feelingText}=readFeeling(existing?.activity);
   const dialog=openDialog(`<form id="vs-create" data-arena-mode="${arenaMode||existing?.arenaMode||''}" data-edit-id="${existing?.id||''}">
     <header class="rep-editor-head"><h2>${title}</h2><button class="rep-glass" type="submit">${existing?'Save':'Post'}</button></header>
@@ -941,6 +1003,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
       <select aria-label="Post format" id="vs-kind" ${existing||arenaMode?'disabled':''}>
         ${['post','reel','story'].map(k=>`<option value="${k}" ${k===kind?'selected':''}>${k[0].toUpperCase()+k.slice(1)}</option>`).join('')}
       </select></div></div>
+    ${arenaMode==='tag'?'<p class="mini">'+tagRules+'</p>':''}
     <textarea aria-label="Your update" id="vs-text" maxlength="800" placeholder="${prompt}">${esc(existing?.text||'')}</textarea>
     <div id="vs-media-preview">${existing?.media?media(existing):''}</div>
     <div class="rep-mention-suggestions" aria-label="Mention suggestions" hidden></div>
@@ -967,7 +1030,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
     </section>
     <section id="rep-tag-screen" hidden aria-label="Tag people">
       <header class="rep-editor-head"><h2>Tag people</h2><button type="button" class="rep-glass rep-tag-done">Done</button></header>
-      ${tagPicker(existing)}
+      ${tagPicker(existing,arenaMode==='tag'&&!responseTo&&!existing)}
     </section></form>`,title);
   dialog.classList.add('rep-editor');
   const form=dialog.querySelector('form');
@@ -1005,7 +1068,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
   dialog.addEventListener('cancel',event=>{
     if(!screen.hidden){event.preventDefault();showTags(false)}
   });
-  if(arenaMode==='tag')showTags(true);
+  if(arenaMode==='tag'&&!responseTo)showTags(true);
   hydrate();
 }
 function editableItem(kind,id){return (kind==='story'?activeStories():data.posts).find(x=>x.id===id&&x.author==='me'&&x.type===kind)}
@@ -1200,7 +1263,7 @@ document.addEventListener('submit',async event=>{
    if(uploadChecking || (form.querySelector('#vs-upload').files.length&&!pending))throw Error('Wait for the selected file to finish checking.');
    const text=form.querySelector('#vs-text').value.trim(),arena=form.dataset.arenaMode;
    const tags=Array.from(form.querySelectorAll('[name=taggedMember]:checked'),el=>el.value);
-   if(arena==='tag'&&!replyTo&&!tags.length)throw Error('Tag a member for this challenge.');
+   if(arena==='tag'&&!replyTo&&!existing&&tags.length!==1)throw Error('Choose one member to challenge.');
    if(arena&&!(pending?.type||existing?.mime||'').startsWith('video/'))throw Error('Choose a video for your challenge.');
    if(kind==='reel'&&!pending&&!existing?.media)throw Error('Choose a photo or video.');
    const activity=kind==='post'?[form.elements.feelingEmoji.value,form.elements.activity.value.trim()].filter(Boolean).join(' '):'';
@@ -1210,7 +1273,7 @@ document.addEventListener('submit',async event=>{
    if(pending){await validateFile(pending,kind);uploaded=await community.upload(pending)}
    const fields={body:text||(!uploaded&&!existing?.media?[activity,place].filter(Boolean).join(' · '):''),media_path:uploaded||existing?.media||null,
     media_type:pending?(pending.type.startsWith('video/')?'video':'image'):existing?.media?(isVideoMedia(existing)?'video':'image'):null,
-    effects:editor.read(form),tags:cleanTags([...tags,...mentionedIds(text)]),activity,place};
+    effects:editor.read(form),tags:arena==='tag'&&!existing&&!replyTo?cleanTags(tags):cleanTags([...tags,...mentionedIds(text)]),activity,place};
    if(!existing)Object.assign(fields,{kind,challenge:arena||null,reply_to:replyTo||null});
    await community.post(fields,existing?.id);
    committed=true;
@@ -1262,8 +1325,33 @@ document.addEventListener('click',async e=>{
     const messages={'An entry needs at least one like before the challenge can close.':'An entry needs at least one Rep before the challenge can close.','The top entries are tied. Keep voting until one entry leads.':'The top entries are tied. Keep giving Reps until one entry leads.'};
     throw Error(messages[error.message]||error.message);
    }finally{b.disabled=false}
+  }else if(action==='tag-match'){
+   const match=tagMatches.get(id);
+   if(match)openDialog('<h2>Tag Challenge</h2>'+tagCard(match),'Tag Challenge');
+  }else if(action==='tag-existing'){
+   const options=people.map(person=>`<option value="${esc(person.id)}">${esc(person.name)}</option>`).join('');
+   const dialog=openDialog(`<h2>Tag Challenge</h2><p class="mini">${tagRules}</p><form><label>Choose a member<select name="opponent" required><option value="">Select a member</option>${options}</select></label><button class="btn" type="submit">Send challenge</button><p role="status"></p></form>`,'Tag Challenge');
+   const form=dialog.querySelector('form');
+   form.onsubmit=async event=>{
+    event.preventDefault();
+    const send=form.querySelector('button');
+    if(send.disabled)return;
+    send.disabled=true;
+    try{
+     await community.tagReel(id,form.elements.opponent.value);
+     dialog.close();
+     await refreshCommunity();
+     toast('Tag Challenge sent');
+    }catch(error){
+     if(dialog.open)form.querySelector('[role=status]').textContent=error.message;
+     else toast(error.message);
+    }finally{send.disabled=false}
+   };
   }else if(action==='respond'){
-   const item=data.posts.find(x=>x.id===id);if(item){composer('reel',null,item.arenaMode);replyTo=id}
+   const item=data.posts.find(x=>x.id===id),match=tagMatches.get(id);
+   if(match&&match.challenger_id===community.identity()&&!match.response_id&&!match.resolved_at&&Date.parse(match.reply_deadline)>Date.now()){
+    composer('reel',null,'tag',id);
+   }else if(!match&&item)composer('reel',null,item.arenaMode,id);
   }else if(['create','add-media'].includes(action))composer(kind||'post');
   else if(action==='filter'){tab=b.dataset.tab;render()}
   else if(action==='close')b.closest('dialog')?.close();

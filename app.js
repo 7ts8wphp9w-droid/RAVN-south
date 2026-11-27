@@ -20,7 +20,7 @@ async function syncJournalProgress(){
  const actions=await community.journalProgress();
  if(s!==state)return;
  s.logs=actions.map(journalProgressLog);
- s.points=s.logs.reduce((total,log)=>total+log.points,0);
+ s.points=s.logs.reduce((total,log)=>total+log.points,s.tagWinPoints||0);
 }
 const logged=key=>s.logs.some(log=>log.key===key&&log.period===journalDay());
 const pointsPerRank=50;
