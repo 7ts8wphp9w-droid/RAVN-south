@@ -303,6 +303,11 @@ function stackTiles(items,ownLabel){
   return previewTile(first,label+(group.length>1?' · '+group.length:''));
  }).join('');
 }
+function reelCircle(){
+ const reels=data.posts.filter(x=>x.type==='reel'&&!x.arenaMode);
+ if(reels.length)return stackTiles(reels,'Your reel');
+ return `<button type="button" class="vs-story" data-vs="add-media" data-kind="reel" aria-label="Add a reel"><span class="vs-story-ring vs-reel-ring" aria-hidden="true">${icon('reels')}</span><strong>Your reels</strong><small>Tap to add</small></button>`;
+}
 window.ravnChallengePreviews=mode=>{
  const items=data.posts.filter(x=>x.type==='reel' && x.arenaMode===mode&&!x.reply);
  if(!items.length)return '';
@@ -313,11 +318,12 @@ function profileFriendStories(){
  const friends=visibleFriendStories();
  return friends.length ? `<section class="vs-stories" aria-label="Friends’ stories">${stackTiles(friends,'Your story')}</section>` : '';
 }
-function storyStrip(showPersonalMedia=true){
+function storyStrip({showPersonalMedia=true,showReels=false}={}){
  const own=activeStories(),friends=visibleFriendStories();
  return `<div data-story-rows>
-  <section class="vs-stories" aria-label="Posts">
+  <section class="vs-stories" aria-label="${showReels?'Posts and reels':'Posts'}">
    <button type="button" class="vs-story" data-vs="create" aria-label="Create a post"><span class="vs-story-ring">${icon('plus')}</span><strong>Post</strong></button>
+   ${showReels?reelCircle():''}
   </section>
   <section class="vs-stories" aria-label="Stories">
    ${showPersonalMedia?`${stackTiles(own,'Your story')}<button type="button" class="vs-story" data-vs="add-media" data-kind="story" aria-label="Add your story"><span class="vs-story-ring">${icon('plus')}</span><strong>${own.length?'Add story':'Your story'}</strong><small>Tap to add</small></button>`:''}
@@ -555,10 +561,10 @@ window.ravnRepbookWrap=wrap;
 function visibleFeedPosts(){
  return [...data.posts,...samples].filter(item=>item.type==='post'&&(tab!=='following'||data.following.includes(item.author)));
 }
-function home(){const items=visibleFeedPosts();return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
+function home(){const items=visibleFeedPosts();return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip({showReels:true})}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
 function reels(){
  const items=data.posts.filter(x=>x.type==='reel');
- return wrap(`${storyStrip(false)}
+ return wrap(`${storyStrip({showPersonalMedia:false})}
   <div class="sectionhead"><div><h2>REELS</h2></div></div>
   <div class="vs-reels">${items.length?items.map(post).join(''):'<p class="mini">Nothing yet…</p>'}</div>`);
 }
