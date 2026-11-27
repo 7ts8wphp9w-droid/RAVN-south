@@ -489,6 +489,7 @@ function renderCommentText(text,draft=false){
  }).join('');
 }
 function openCommentSheet(item,opener){
+ repbookSounds.primePosting();
  const viewer=opener.closest('.story-player');
  const video=viewer?.querySelector('video');
  const wasPlaying=video&&!video.paused;
