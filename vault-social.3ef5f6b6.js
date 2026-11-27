@@ -197,21 +197,22 @@ function challengeStatus(item){
  const close=item.author==='me'?`<button class="btn-outline" data-vs="close-challenge" data-id="${esc(item.id)}">Close challenge and award badge</button>`:'';
  return '<p>Give a Rep by tapping the dumbbell. The entry with the most Reps wins a bronze badge when the creator closes the challenge. A tie keeps the challenge open.</p>'+close;
 }
-achievements=()=>wrap('<div class="rep-trophy-page">'+awardGallery()+checkinForm()+'</div>');
-function checkinForm(){return `<form class="card" id="live-checkin"><h3>Record a daily step</h3><p>Your first signed-in visit each day earns one random bronze badge from the five steps. A new day starts at midnight UK time.</p><p>When paid memberships launch, a subscriber’s daily check-in will also have a 1 in 3 chance of a badge for that step.</p><label class="field">Step<select name="step">${trophySteps.map(([,name])=>'<option>'+name+'</option>').join('')}</select></label><label class="field">What did you do today?<textarea name="reflection" minlength="10" maxlength="500" required></textarea></label><button class="btn">Save check-in</button><p role="status"></p></form>`}
-arenaLeaderboard=()=>{
+achievements=()=>wrap('<div class="rep-trophy-page">'+awardGallery()+'</div>');
+journalLeaderboard=()=>{
  const totals=new Map();
  for(const row of scores)totals.set(row.user_id,(totals.get(row.user_id)||0)+row.month_badges);
- const entries=[...totals].filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
- return wrap('<h2>Monthly leaderboard</h2>'+ (entries.length?'<ol>'+entries.map(([id,n])=>'<li>'+esc(id===community.identity()?s.name:member(id).name)+' · '+n+' badges</li>').join('')+'</ol>':'<p>No badges earned yet this month.</p>'));
+ const entries=[...totals].filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]||member(a[0]).name.localeCompare(member(b[0]).name));
+ if(!entries.length)return '<p>No badges earned yet this month.</p>';
+ return '<ol class="journal-ranks">'+entries.map(([id,n])=>`<li><span>${esc(id===community.identity()?s.name:member(id).name)}</span><strong>${n} ${n===1?'badge':'badges'}</strong></li>`).join('')+'</ol>';
 };
 const photoButton=(size='')=>`<button type="button" class="vs-photo-button ${size}" data-vs="edit-profile" aria-label="Edit profile" title="Edit profile">${portrait('me',size)}<span class="vs-photo-edit" aria-hidden="true">+</span></button>`;
 const glyphs={
+ journal:'<path d="M7 3h13v18H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Zm0 0v18m4-12h5m-5 4h5"/>',
  gym:'<path d="M3 21h18 M4 21V4h16v17 M10 21v-5h4v5 M7 9h10 M8.5 7v4 M15.5 7v4"/>',
  filmReel:'<circle cx="11" cy="11" r="9"/><circle cx="11" cy="6.6" r="1.45"/><circle cx="6.6" cy="11" r="1.45"/><circle cx="15.4" cy="11" r="1.45"/><circle cx="11" cy="15.4" r="1.45"/><circle cx="11" cy="11" r=".6" fill="currentColor" stroke="none"/><path d="M11 20h7.5a3.5 3.5 0 0 0 3.5-3.5"/>',
  activity:'<path d="M2 12h5l3-8 4 16 3-8h5"/>',place:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',feed:'<path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',reels:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 6 3-6 3Z M4 7h16 M8 3l3 4 M14 3l3 4"/>',challenge:'<path d="M2 9 6 5h12l4 4-4 4H6L2 9Z M2 9l2 8 4 3h8l4-3 2-8 M8 14l1 5 M16 14l-1 5 M7 9h10"/>',people:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/>',profile:'<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',plus:'<path d="M12 4v16 M4 12h16"/>',photo:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',tag:'<path d="M3 3h8l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1"/>',trophy:'<path d="M8 3h8v7a4 4 0 0 1-8 0Z M8 5H4v3a4 4 0 0 0 4 4 M16 5h4v3a4 4 0 0 1-4 4 M12 14v6 M7 21h10"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',trash:'<path d="M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7"/>',check:'<path d="m4 12 5 5L20 6"/>'};
 const icon=name=>`<svg class="rep-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyphs[name]||glyphs.plus}</svg>`;
-const navBar=()=>`<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','gym'],['/repbook/reels','Reels','filmReel'],['/repbook/challenges','Arena','challenge'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${path()===url||url==='/repbook'&&path()==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
+const navBar=()=>`<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','gym'],['/repbook/reels','Reels','filmReel'],['/repbook/challenges','Arena','challenge'],['/repbook/journal','Journal','journal'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${path()===url||url==='/repbook'&&path()==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
 function scheduleExpiry(){
  clearTimeout(expiryTimer);
  const timed=[...data.stories,...data.posts.filter(p=>p.type==='reel')];
@@ -223,7 +224,7 @@ function scheduleExpiry(){
   data.stories=data.stories.filter(active);
   const player=document.querySelector('dialog[data-media-deadline]');
   if(player && Number(player.dataset.mediaDeadline)<=Date.now())player.close();
-  if(s.joined && (path().startsWith('/repbook')||path()==='/profile'))render();
+  if(s.joined && !onJournal() && (path().startsWith('/repbook')||path()==='/profile'))render();
   scheduleExpiry();
  },Math.max(0,next-Date.now()));
 }
@@ -546,7 +547,7 @@ function showRepList(id,button){
 function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
-function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/leaderboard">${icon('trophy')} Leaderboard</a></aside></div>`)}
+function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
 function reels(){
  const items=data.posts.filter(x=>x.type==='reel');
  return wrap(`${storyStrip(false)}
@@ -830,13 +831,11 @@ finally{if(version===uploadVersion){uploadChecking=false;if(button.isConnected)b
 async function refreshCommunity(){await window.loadCommunity();render()}
 document.addEventListener('submit',async event=>{
  const form=event.target;
- if(!['vs-create','vs-profile','live-checkin'].includes(form.id))return;
+ if(!['vs-create','vs-profile'].includes(form.id))return;
  event.preventDefault();const button=form.querySelector('[type=submit],button.btn');if(button.disabled)return;button.disabled=true;
  let uploaded=null,committed=false;
  try{
-  if(form.id==='live-checkin'){
-   await community.checkin(form.elements.step.value,form.elements.reflection.value.trim());
-  }else if(form.id==='vs-profile'){
+  if(form.id==='vs-profile'){
    await community.profile({display_name:form.elements.displayName.value.trim(),bio:form.elements.bio.value.trim(),discoverable:form.elements.visibility.value==='members'});
   }else{
    const kind=form.querySelector('#vs-kind').value,existing=form.dataset.editId?editableItem(kind,form.dataset.editId):null;
@@ -862,7 +861,7 @@ document.addEventListener('submit',async event=>{
   committed=true;if(form.id==='vs-profile')form.closest('dialog')?.close();await refreshCommunity();toast('Saved');
  }catch(e){
   if(uploaded&&!committed)await community.removeFile(uploaded).catch(()=>{});
-  const message=committed?'Saved. Refresh to see your update.':e.message.includes('duplicate key')?'You have already recorded this step today.':e.message;
+  const message=committed?'Saved. Refresh to see your update.':e.message;
   const status=form.querySelector('#vs-error,#vs-save-status,[role=status]');if(status?.isConnected)status.textContent=message;else toast(message);
  }finally{button.disabled=false}
 });
@@ -968,7 +967,7 @@ document.addEventListener('click',async e=>{
 let refreshing=false;
 async function updateFeed(){
  if(refreshing||document.hidden||!s.joined||(!path().startsWith('/repbook')&&path()!=='/profile')||document.querySelector('dialog[open],form :focus'))return;
- refreshing=true;try{await window.loadCommunity();if(!document.querySelector('dialog[open],form :focus'))render()}catch{}finally{refreshing=false}
+ refreshing=true;try{await window.loadCommunity();if(!onJournal()&&!document.querySelector('dialog[open],form :focus'))render()}catch{}finally{refreshing=false}
 }
 setInterval(updateFeed,60000);
 window.addEventListener('focus',updateFeed);

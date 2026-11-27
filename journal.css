@@ -1,0 +1,136 @@
+.journal-page {
+  width: min(100%, 740px);
+  margin: 0 auto 40px;
+  color: #eee5f2;
+}
+
+.journal-heading {
+  margin: 16px 0 28px;
+}
+
+.journal-heading h1, .journal-page h2 {
+  color: #e4caee;
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: .035em;
+  margin: 0 0 10px;
+}
+
+.journal-heading h1 {
+  font-size: clamp(2rem, 7vw, 3.25rem);
+}
+
+.journal-heading p, .journal-daily > p {
+  color: #d0c0d6;
+  margin: 0 0 15px;
+}
+
+.journal-page h2 {
+  font-size: clamp(1.18rem, 4vw, 1.45rem);
+}
+
+.journal-page .journal-entry, .journal-page .journal-panel {
+  background: #17121c;
+  border: 1px solid #49364f;
+  border-radius: 14px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+
+.journal-daily, .journal-page .journal-panel {
+  margin-bottom: 24px;
+}
+
+.journal-entry > summary, .journal-past > summary {
+  color: #f0e8f4;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.journal-entry > summary > span:first-of-type {
+  font-weight: 700;
+}
+
+.journal-entry-state, .journal-past time {
+  margin-left: .6rem;
+  color: #dabce5;
+  font-size: .875rem;
+  white-space: nowrap;
+}
+
+.journal-entry form {
+  border-top: 1px solid #49364f;
+  margin: 12px 0 0;
+  padding-top: 12px;
+}
+
+.journal-entry textarea, .journal-entry select {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  color: #f4ecf7;
+  background: #211927;
+  border: 1px solid #775c83;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color-scheme: dark;
+}
+
+.journal-entry textarea {
+  resize: vertical;
+}
+
+.journal-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.journal-entry-actions .btn:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.journal-count {
+  font-size: .875rem;
+}
+
+.journal-status:empty {
+  display: none;
+}
+
+.journal-status, .journal-saved {
+  margin: 10px 0 0;
+}
+
+.journal-ranks {
+  padding-left: 1.5rem;
+  margin-bottom: 0;
+}
+
+.journal-ranks li + li, .journal-past + .journal-past {
+  border-top: 1px solid #49364f;
+}
+
+.journal-ranks li, .journal-past {
+  padding: .55rem .25rem;
+  overflow-wrap: anywhere;
+}
+
+.journal-ranks strong {
+  margin-left: .75rem;
+  color: #e4caee;
+  white-space: nowrap;
+}
+
+.journal-past p {
+  white-space: pre-wrap;
+  margin-bottom: 0;
+}
+
+.profile-journal-link {
+  margin: 12px 0;
+}

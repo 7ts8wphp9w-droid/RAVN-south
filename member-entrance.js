@@ -11,7 +11,10 @@
       previousRender();
       return;
     }
-    if(!auth && route!=='/' && /^\/[a-z0-9/-]+$/i.test(route))destination=route;
+    if(!auth && route!=='/' && /^\/[a-z0-9/-]+$/i.test(route)){
+      const target=location.hash.slice(1);
+      destination=onJournal()&&/^\/[a-z/-]+\?section=[a-z]+$/.test(target)?target:route;
+    }
     document.body.classList.remove('repbook-social','arena-active');
     document.body.classList.add('gateway-active');
     const signup=route==='/signup';
@@ -48,7 +51,7 @@
         await community.prepare(user);
         if(ticket!==generation)return;
         s={...structuredClone(defaults),...JSON.parse(localStorage.getItem('ravn-member-'+user.id)||'{}'),joined:true,tier:'Free'};
-        await restoreDashboardProgress();
+        await syncJournalProgress();
         if(ticket!==generation)return;
         await window.loadCommunity();
         if(ticket!==generation)return;
