@@ -600,13 +600,6 @@ vault=home;feed=home;stories=()=>wrap(storyStrip());profile=()=>profileView();
 render=function(){document.querySelector('#vs-dialog')?.remove();originalRender();const p=path();let custom=p==='/repbook/reels'?reels():p==='/repbook/members'?members():p.startsWith('/repbook/member/')?profileView(p.split('/')[3]):null;if(custom!==null)document.querySelector('main.page').innerHTML=pageBack(backFallback(p))+custom;hydrate()};
 function openDialog(html,label){document.querySelector('#vs-dialog')?.remove();const d=document.createElement('dialog');d.id='vs-dialog';d.className='vs-dialog';d.setAttribute('aria-label',label);d.innerHTML=`<button class="vs-close" type="button" aria-label="Close" data-vs="close">×</button>${html}`;document.body.append(d);d.addEventListener('close',()=>{if(!document.querySelector('#vs-dialog')||document.querySelector('#vs-dialog')===d){pending=null}d.remove()});d.addEventListener('click',event=>{if(event.target.closest('a[href^="#/repbook/member/"]'))d.close()});d.showModal();return d}
 const postColours=['Default','Plum','Slate','Midnight'];
-function postTools(existing){
- const activity=existing?.activity||'',place=existing?.place||'';
- return `<div class="rep-post-options">
-  <details><summary>${icon('activity')}Feeling / activity</summary><label>How are you feeling?<input name="activity" maxlength="60" placeholder="Focused after training" value="${esc(activity)}"></label></details>
-  <details><summary>${icon('place')}Check in</summary><label>Place<input name="place" maxlength="80" placeholder="Enter a place" value="${esc(place)}"></label></details>
- </div>`;
-}
 function composer(kind='post', existing=null, arenaMode=null) {
   replyTo=null;uploadVersion++;
   uploadChecking=false;
@@ -623,13 +616,24 @@ function composer(kind='post', existing=null, arenaMode=null) {
     <div id="vs-media-preview">${existing?.media?media(existing):''}</div>
     <div class="rep-mention-suggestions" aria-label="Mention suggestions" hidden></div>
     <p id="vs-error" role="alert"></p>
-    <div class="rep-editor-tools" aria-label="Post actions">
+    <div class="rep-composer-media">
       <label class="rep-attach">${icon('photo')}<span>Add photo or video</span>
         <input id="vs-upload" type="file" accept="${arenaMode||existing?.arenaMode?'video/mp4,video/webm,video/quicktime':'image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime'}">
       </label>
-      <button type="button" class="rep-tag-open" aria-controls="rep-tag-screen">${icon('tag')}<span>@ Mention / tag people</span></button>
-      ${editor.controls(existing?.effects)}${postTools(existing)}<small data-upload-limits></small>
+      <small data-upload-limits></small>
+      ${editor.controls(existing?.effects)}
     </div>
+    <section class="rep-editor-tools" aria-label="Post options">
+      <details data-post-context>
+        <summary>${icon('activity')}Feeling</summary>
+        <label>How are you feeling?<input name="activity" maxlength="60" placeholder="Focused after training" value="${esc(existing?.activity||'')}"></label>
+      </details>
+      <button type="button" class="rep-tag-open" aria-controls="rep-tag-screen">${icon('tag')}<span>@Mention</span></button>
+      <details data-post-context>
+        <summary>${icon('place')}Gym check-in</summary>
+        <label>Gym name (optional)<input name="place" maxlength="80" placeholder="Enter your gym name" value="${esc(existing?.place||'')}"></label>
+      </details>
+    </section>
     <section id="rep-tag-screen" hidden aria-label="Tag people">
       <header class="rep-editor-head"><h2>Tag people</h2><button type="button" class="rep-glass rep-tag-done">Done</button></header>
       ${tagPicker(existing)}
@@ -638,9 +642,9 @@ function composer(kind='post', existing=null, arenaMode=null) {
   editor.bind(dialog.querySelector('form'));
   bindMentions(dialog);
   const format=dialog.querySelector('#vs-kind');
-  const options=dialog.querySelector('.rep-post-options');
+  const contextOptions=dialog.querySelectorAll('[data-post-context]');
   function syncPostTools(){
-    options.hidden=format.value!=='post';
+    contextOptions.forEach(option=>{option.hidden=format.value!=='post'});
     const limits=mediaLimits(format.value);
     dialog.querySelector('[data-upload-limits]').textContent=`Photos up to 20 MB · Videos up to ${limits.videoMB} MB / ${limits.seconds===60?'60 seconds':'3 minutes'}`;
   }
@@ -654,7 +658,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
     dialog.classList.toggle('rep-tagging',open);
     dialog.setAttribute('aria-label',open?'Tag people':dialog.querySelector('.rep-editor-head h2').textContent);
     const count=screen.querySelectorAll('input:checked').length;
-    opener.querySelector('span').textContent=count?'@ Mentions / tags ('+count+')':'@ Mention / tag people';
+    opener.querySelector('span').textContent=count?'@Mention ('+count+')':'@Mention';
     (open?done:opener).focus();
   }
   opener.onclick=()=>showTags(true);
