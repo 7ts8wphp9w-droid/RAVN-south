@@ -5,14 +5,15 @@ const repbookSounds = (() => {
   let activeChimes = 0;
   let previousSessionType;
 
-  function withTransientAudio(source) {
+  function withPlaybackAudio(source) {
     const session = navigator.audioSession;
     if (!session) return () => source.disconnect();
 
     if (!activeChimes) {
       previousSessionType = session.type;
       try {
-        session.type = 'transient';
+        // iOS can mute notification-style Web Audio while in Silent Mode.
+        session.type = 'playback';
       } catch {
         // Continue with the browser's default audio session.
       }
@@ -21,7 +22,7 @@ const repbookSounds = (() => {
     return () => {
       source.disconnect();
       activeChimes--;
-      if (!activeChimes && session.type === 'transient') {
+      if (!activeChimes && session.type === 'playback') {
         session.type = previousSessionType;
       }
     };
@@ -61,7 +62,7 @@ const repbookSounds = (() => {
           source.buffer = buffer;
           source.connect(context.destination);
           const release = asset === postingAsset
-            ? withTransientAudio(source)
+            ? withPlaybackAudio(source)
             : () => source.disconnect();
           source.onended = release;
           try {
