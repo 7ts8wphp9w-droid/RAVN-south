@@ -1,6 +1,12 @@
 const repbookSounds = (() => {
   const postingAsset = './assets/repbook-post-chime.wav?v=focus-pulse';
+  // A short, silent recording lets Safari authorize the player inside the tap.
+  const silentClip = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+  const useNativePlayer = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const buffers = new Map();
+  let postingPlayer;
+  let nativeReady;
   let context;
   let activeChimes = 0;
   let previousSessionType;
@@ -77,9 +83,47 @@ const repbookSounds = (() => {
     }
   }
 
+  function unlockPostingPlayer() {
+    if (!useNativePlayer) return;
+    if (!nativeReady) {
+      postingPlayer ||= new Audio(silentClip);
+      // Keep the same element for the real clip so it retains permission.
+      nativeReady = postingPlayer.play().catch(() => {
+        nativeReady = null;
+        return false;
+      }).then(result => result !== false);
+    }
+    return nativeReady;
+  }
+
+  function posting() {
+    const fallback = prepare(postingAsset);
+    const ready = unlockPostingPlayer();
+    if (!ready) return fallback;
+    const player = postingPlayer;
+    return async () => {
+      try {
+        if (await ready) {
+          if (player.getAttribute('src') !== postingAsset) {
+            player.src = postingAsset;
+          }
+          player.currentTime = 0;
+          await player.play();
+          return;
+        }
+      } catch {
+        if (postingPlayer === player) {
+          nativeReady = null;
+          postingPlayer = null;
+        }
+      }
+      fallback?.();
+    };
+  }
+
   return {
-    primePosting: () => { prepare(postingAsset); },
-    posting: () => prepare(postingAsset),
+    primePosting: () => { posting(); },
+    posting,
     rep: () => prepare('./assets/rep-coins.wav')
   };
 })();
