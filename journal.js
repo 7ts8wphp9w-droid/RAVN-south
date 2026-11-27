@@ -11,9 +11,27 @@ const journalStates = new WeakMap();
 const journalCalendar = new Intl.DateTimeFormat('en-GB', {
   timeZone:'Europe/London', year:'numeric', month:'2-digit', day:'2-digit'
 });
+const journalDayLabel = new Intl.DateTimeFormat('en-GB', {
+  timeZone:'UTC', weekday:'short', day:'numeric', month:'short'
+});
+const journalWeekLabel = new Intl.DateTimeFormat('en-GB', {
+  timeZone:'UTC', day:'numeric', month:'short', year:'numeric'
+});
 
 function journalDay(){
   return journalCalendar.format(new Date()).split('/').reverse().join('-');
+}
+function journalDate(day){
+  return new Date(day+'T12:00:00Z');
+}
+function journalDayOffset(day,days){
+  const date=journalDate(day);
+  date.setUTCDate(date.getUTCDate()+days);
+  return date.toISOString().slice(0,10);
+}
+function journalWeekStart(day){
+  const daysSinceMonday=(journalDate(day).getUTCDay()+6)%7;
+  return journalDayOffset(day,-daysSinceMonday);
 }
 
 function journalWordCount(text){
@@ -27,11 +45,14 @@ function journalState(){
   const state=journalStates.get(s);
   const day=journalDay();
   if(state.day!==day){
+    if(!state.week||(state.day&&state.week===journalWeekStart(state.day)))state.week=journalWeekStart(day);
     state.day=day;
     state.drafts.clear();
     state.open.clear();
     state.workout=null;
     state.entries=null;
+    state.loading=false;
+    state.issue=false;
   }
   return state;
 }
@@ -47,13 +68,22 @@ function journalProgressMeter(){
   return `<div class="dash-points"><strong>${s.points.toLocaleString('en-GB')} points</strong><small>${pointsPerRank-rankProgress()} to next level</small><progress value="${rankProgress()}" max="${pointsPerRank}" aria-label="Progress to next level"></progress></div>`;
 }
 
-async function loadJournalEntries(state,refresh=false){
+function updateJournalHistory(state,focus=false){
+  if(journalStates.get(s)!==state||!onJournal())return;
+  const panel=document.querySelector('[data-journal-history]');
+  if(!panel)return;
+  panel.innerHTML=journalHistory(state);
+  if(focus)(panel.querySelector('[data-journal-week-label], [data-journal-retry]')||document.getElementById('journal-history'))?.focus({preventScroll:true});
+}
+
+async function loadJournalEntries(state,{refresh=false,focus=false}={}){
   if(state.loading&&!refresh)return;
   const request=Symbol();
   state.loading=request;
+  state.issue=false;
   let entries;
   try{
-    entries=await community.journalEntries();
+    entries=await community.journalEntries(state.week,journalDayOffset(state.week,6));
   }catch{
     // Keep the saved state available if the history request fails.
   }
@@ -61,10 +91,7 @@ async function loadJournalEntries(state,refresh=false){
   state.loading=false;
   state.issue=!entries;
   if(entries)state.entries=entries;
-  if(journalStates.get(s)===state && onJournal()){
-    const panel=document.querySelector('[data-journal-history]');
-    if(panel)panel.innerHTML=journalHistory(state);
-  }
+  updateJournalHistory(state,focus);
 }
 
 function journalEntryCard(key, state){
@@ -91,11 +118,28 @@ function journalEntryCard(key, state){
 function journalHistory(state){
   if(state.issue)return '<p>Could not load your entries. <button type="button" class="btn-outline" data-journal-retry>Try again</button></p>';
   if(!state.entries)return '<p role="status">Loading your entries…</p>';
-  if(!state.entries.length)return '<p>Your saved entries will appear here.</p>';
-  return state.entries.map(({action,activity_day,entry,step})=>{
-    const date=new Date(activity_day+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/London'});
-    return `<details class="journal-past"><summary><span>${journalSections[action].title}${step?' · '+esc(step):''}</span><time datetime="${activity_day}">${date}</time></summary><p>${esc(entry)}</p></details>`;
-  }).join('');
+  const {items,older,newer}=state.entries;
+  if(!items.length&&!older&&!newer)return '<p>Your saved entries will appear here.</p>';
+  const days=new Map();
+  for(const row of items){
+    if(!days.has(row.activity_day))days.set(row.activity_day,[]);
+    days.get(row.activity_day).push(row);
+  }
+  const from=journalDate(state.week),through=journalDate(journalDayOffset(state.week,6));
+  const range=journalWeekLabel.formatRange(from,through);
+  const currentWeek=journalWeekStart(state.day);
+  const weekButton=(label,day)=>`<button type="button" class="btn-outline" data-journal-week="${day?journalWeekStart(day):''}" ${day?'':'disabled'}>${label}</button>`;
+  const groups=[...days].map(([day,rows],index)=>`<details class="journal-day" name="journal-history-day" ${index===0?'open':''}>
+    <summary><time datetime="${day}">${journalDayLabel.format(journalDate(day))}</time><span class="journal-day-count">${rows.length} ${rows.length===1?'entry':'entries'}</span></summary>
+    ${rows.map(({action,entry,step})=>`<details class="journal-past"><summary>${journalSections[action]?.title||'Entry'}${step?' · '+esc(step):''}</summary><p>${esc(entry)}</p></details>`).join('')}
+  </details>`).join('');
+  return `<p class="journal-week-label" data-journal-week-label tabindex="-1">${range}</p>
+    <nav class="journal-weeks" aria-label="Journal weeks">
+      ${weekButton('Older week',older)}
+      ${state.week!==currentWeek?weekButton('This week',currentWeek):''}
+      ${weekButton('Newer week',newer)}
+    </nav>
+    ${groups||'<p>No entries for this week.</p>'}`;
 }
 
 function journal(repbook=false){
@@ -114,7 +158,7 @@ function journal(repbook=false){
   const body=`<div class="journal-page">
     <header class="journal-heading"><h1>Journal</h1><p>${esc(s.name)} · Level ${level()}</p>${journalProgressMeter()}</header>
     ${requested==='leaderboard'?leaderboard+checkins:checkins+leaderboard}
-    <section class="journal-panel card" aria-labelledby="journal-history"><h2 id="journal-history">Recent entries</h2><div data-journal-history>${journalHistory(state)}</div></section>
+    <section class="journal-panel card" aria-labelledby="journal-history"><h2 id="journal-history" tabindex="-1">Entry history</h2><div data-journal-history>${journalHistory(state)}</div></section>
   </div>`;
   return repbook?window.ravnRepbookWrap(body):`<div class="wrap">${body}</div>`;
 }
@@ -144,10 +188,15 @@ document.addEventListener('input',event=>{
 
 document.addEventListener('click',event=>{
   const retry=event.target.closest('[data-journal-retry]');
-  if(retry){
-    retry.disabled=true;
-    void loadJournalEntries(journalState());
+  const week=event.target.closest('[data-journal-week]')?.dataset.journalWeek;
+  if(!retry&&!week)return;
+  const state=journalState();
+  if(week){
+    state.week=week;
+    state.entries=null;
   }
+  void loadJournalEntries(state,{refresh:true,focus:true});
+  updateJournalHistory(state,true);
 });
 
 document.addEventListener('submit',async event=>{
@@ -188,7 +237,7 @@ document.addEventListener('submit',async event=>{
     if(journalStates.get(s)!==state)return;
     state.drafts.delete(key);
     save();
-    void loadJournalEntries(state,true);
+    void loadJournalEntries(state,{refresh:true});
   }catch{
     if(form.isConnected)status.textContent='Could not confirm your entry was saved. Please try again.';
   }finally{

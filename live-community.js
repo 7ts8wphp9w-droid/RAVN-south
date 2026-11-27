@@ -42,18 +42,27 @@ const community = (() => {
       .select('action,activity_day,period,points'));
     return rows[0];
   }
-  async function journalEntries(){
+  async function journalEntries(start,end){
     const accountId=identity();
-    const [entries,checkins]=await Promise.all([
-      result(client.from('vault_dashboard_actions').select('action,activity_day,entry,step')
-        .eq('user_id',accountId).not('entry','is',null).order('activity_day',{ascending:false}).order('action').limit(30)),
-      result(client.from('vault_checkins').select('step,day,reflection')
-        .eq('user_id',accountId).order('day',{ascending:false}).order('step').limit(30))
+    const entriesQuery=columns=>client.from('vault_dashboard_actions').select(columns)
+      .eq('user_id',accountId).not('entry','is',null);
+    const checkinsQuery=columns=>client.from('vault_checkins').select(columns).eq('user_id',accountId);
+    const weekFor=(query,columns,dateColumn,orderColumn)=>Promise.all([
+      result(query(columns).gte(dateColumn,start).lte(dateColumn,end)
+        .order(dateColumn,{ascending:false}).order(orderColumn)),
+      result(query(dateColumn).lt(dateColumn,start).order(dateColumn,{ascending:false}).limit(1)),
+      result(query(dateColumn).gt(dateColumn,end).order(dateColumn).limit(1))
+    ]);
+    const [[entries,olderEntries,newerEntries],[checkins,olderCheckins,newerCheckins]]=await Promise.all([
+      weekFor(entriesQuery,'action,activity_day,entry,step','activity_day','action'),
+      weekFor(checkinsQuery,'step,day,reflection','day','step')
     ]);
     const checkinKeys=new Set(entries.filter(row=>row.action==='checkin').map(row=>row.activity_day+'/'+row.step+'/'+row.entry));
     const earlier=checkins.filter(row=>!checkinKeys.has(row.day+'/'+row.step+'/'+row.reflection))
       .map(row=>({action:'checkin',activity_day:row.day,step:row.step,entry:row.reflection}));
-    return [...entries,...earlier].sort((a,b)=>b.activity_day.localeCompare(a.activity_day)).slice(0,30);
+    const older=[olderEntries[0]?.activity_day,olderCheckins[0]?.day].filter(Boolean).sort().pop();
+    const newer=[newerEntries[0]?.activity_day,newerCheckins[0]?.day].filter(Boolean).sort()[0];
+    return {items:[...entries,...earlier].sort((a,b)=>b.activity_day.localeCompare(a.activity_day)||a.action.localeCompare(b.action)),older,newer};
   }
   async function prepare(account){
     if(user?.id!==account.id)loginReward=null;
