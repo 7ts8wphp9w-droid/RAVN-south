@@ -4,9 +4,9 @@ function profileAwardCounts(data=arenaTrophyData()){
  return {badges:data.badges,bronze:data.steps.reduce((n,x)=>n+x.bronze,0),silver:data.steps.reduce((n,x)=>n+x.silver,0),gold:data.steps.reduce((n,x)=>n+x.gold,0),platinum:data.platinum?1:0};
 }
 function awardGallery(steps=arenaTrophyData().steps, platinum=arenaTrophyData().platinum){
- const cell=(row,column,label,count)=>`<div class="collection-award" aria-label="${label}: ${count}"><span aria-hidden="true" style="background-position:${column*25}% ${row*25}%"></span><b aria-hidden="true">${count.toLocaleString('en-GB')}</b></div>`;
+ const cell=(row,column,label,count,badgeName='')=>`<div class="collection-award" aria-label="${label}: ${count}">${badgeName?`<small class="collection-badge-name" aria-hidden="true">${esc(badgeName)}</small>`:''}<span aria-hidden="true" style="background-position:${column*25}% ${row*25}%"></span><b aria-hidden="true">${count.toLocaleString('en-GB')}</b></div>`;
  const tiers=['badges','bronze','silver','gold'];
- return '<div class="collection-gallery" role="group" aria-label="Badges and trophies">'+tiers.map((tier,row)=>steps.map((step,column)=>cell(row,column,step.id+' '+tier,step[tier])).join('')).join('')+cell(4,0,'Platinum',Number(platinum))+'</div>';
+ return '<div class="collection-gallery" role="group" aria-label="Badges and trophies">'+tiers.map((tier,row)=>steps.map((step,column)=>cell(row,column,step.id+' '+tier,step[tier],row===0?step.id:'')).join('')).join('')+cell(4,0,'Platinum',Number(platinum))+'</div>';
 }
 function snapshotGallery(profile){
  if(profile.badgeSteps){
