@@ -218,7 +218,7 @@ window.loadCommunity=async()=>{
   likeCounts.set(like.post_id,ids.length);
  }
  data.storyComments={};
- for(const c of live.comments)(data.storyComments[c.post_id]??=[]).push(c.body);
+ for(const c of live.comments)(data.storyComments[c.post_id]??=[]).push({text:c.body,author:c.user_id===me?'me':c.user_id});
  allFollows=live.follows;data.following=allFollows.filter(f=>f.follower_id===me).map(f=>f.followed_id);
  scores=live.scores;ownBadges=live.own;
  const leading=live.months[0];verifiedMonth=leading?{verified:true,rank:1,month:leading.month,daysAtNumberOne:leading.days}:null;
@@ -513,7 +513,7 @@ function openCommentSheet(item,opener){
   list.append(row);
   empty.hidden=true;
  }
- for(const text of data.storyComments[item.id]||[])appendComment(text);
+ for(const comment of data.storyComments[item.id]||[])appendComment(comment.text);
  const form=sheet.querySelector('form'),input=form.elements.comment,send=form.querySelector('[type=submit]');
  const emojiBox=sheet.querySelector('#rep-comment-emojis'),emojiButton=sheet.querySelector('.rep-comment-emoji-toggle');
  const status=sheet.querySelector('[role=status]');
@@ -550,7 +550,7 @@ function openCommentSheet(item,opener){
   status.textContent='';
   try{
    await community.comment(item.id,text);
-   (data.storyComments[item.id]??=[]).push(text);
+   (data.storyComments[item.id]??=[]).push({text,author:'me'});
    chime?.();
    appendComment(text);
    input.value='';
@@ -711,7 +711,7 @@ function postActions(item,extraClass=''){
  const id=esc(item.id),type=sharedMediaPages[shareSection(item)].type;
  return `<div class="vs-post-tools rep-post-actions ${extraClass}">
   ${repControl(item)}
-  <button type="button" class="rep-post-action" data-vs="comment" data-id="${id}" aria-label="Comment" title="Comment" aria-haspopup="dialog">${icon('comment')}</button>
+  <button type="button" class="rep-post-action" data-vs="comment" data-id="${id}" aria-label="Comment" data-comment-hold title="Hold to see who commented" aria-keyshortcuts="ArrowDown" aria-haspopup="dialog">${icon('comment')}</button>
   <button type="button" class="rep-post-action" data-vs="share" data-id="${id}" aria-label="Share ${type}" title="Share">${icon('share')}</button>
  </div>`;
 }
@@ -722,12 +722,12 @@ function cancelHold(){
 }
 document.addEventListener('pointerdown',event=>{
  cancelHold();heldButton=null;
- const button=event.target.closest('[data-rep-hold]');
+ const button=event.target.closest('[data-rep-hold],[data-comment-hold]');
  if(!button||!event.isPrimary||event.button!==0)return;
  hold={id:event.pointerId,x:event.clientX,y:event.clientY,timer:setTimeout(()=>{
   if(!button.isConnected)return;
   heldButton=button;
-  showRepList(button.dataset.id,button);
+  showParticipantList(button.dataset.id,button);
  },500)};
 });
 document.addEventListener('pointermove',event=>{
@@ -736,35 +736,38 @@ document.addEventListener('pointermove',event=>{
 for(const type of ['pointerup','pointercancel'])document.addEventListener(type,cancelHold);
 window.addEventListener('blur',cancelHold);
 document.addEventListener('contextmenu',event=>{
- if(event.target.closest('[data-rep-hold]'))event.preventDefault();
+ if(event.target.closest('[data-rep-hold],[data-comment-hold]'))event.preventDefault();
 });
 document.addEventListener('click',event=>{
  if(heldButton&&event.detail){heldButton=null;event.preventDefault();event.stopImmediatePropagation()}
 },true);
 document.addEventListener('keydown',event=>{
- const button=event.target.closest('[data-rep-hold]');
+ const button=event.target.closest('[data-rep-hold],[data-comment-hold]');
  if(button&&event.key==='ArrowDown'){
-  event.preventDefault();event.stopPropagation();showRepList(button.dataset.id,button);
+  event.preventDefault();event.stopPropagation();showParticipantList(button.dataset.id,button);
  }
 },true);
-function showRepList(id,button){
+function showParticipantList(id,button){
  if(document.querySelector('.rep-member-list[open]'))return;
  const item=[...data.posts,...data.stories].find(post=>post.id===id);
- if(!item||item.author!=='me')return;
+ const comments=button.hasAttribute('data-comment-hold');
+ if(!item||(!comments&&item.author!=='me'))return;
  const viewer=document.querySelector('#vs-dialog.story-player');
  const video=viewer?.querySelector('video'),resume=video&&!video.paused;
  video?.pause();
  const list=document.createElement('dialog');
  list.className='rep-member-list';
- list.setAttribute('aria-label','Who repped this');
- const rows=(reactors.get(id)||[]).map(person=>{
+ const title=comments?'Who commented':'Who repped this';
+ list.setAttribute('aria-label',title);
+ const participants=comments?[...new Set((data.storyComments[id]||[]).map(comment=>comment.author).filter(Boolean))]:reactors.get(id)||[];
+ const rows=participants.map(person=>{
   const label=person==='me'?'You':member(person).name;
   const body=portrait(person)+'<strong>'+esc(label)+'</strong>';
   if(person!=='me'&&!people.some(p=>p.id===person))return '<li><span>'+body+'</span></li>';
   const href=person==='me'?'#/profile':'#/repbook/member/'+encodeURIComponent(person);
   return '<li><a href="'+href+'">'+body+'</a></li>';
  });
- list.innerHTML='<header><h2>Who repped this</h2><button type="button">Close</button></header>'+(rows.length?'<ul>'+rows.join('')+'</ul>':'<p>No reps yet.</p>');
+ list.innerHTML='<header><h2>'+title+'</h2><button type="button">Close</button></header>'+(rows.length?'<ul>'+rows.join('')+'</ul>':comments?'<p>No comments yet.</p>':'<p>No reps yet.</p>');
  document.body.append(list);
  list.querySelector('button').onclick=()=>list.close();
  list.onclick=e=>{if(e.target.closest('a')){viewer?.close();list.close()}};
