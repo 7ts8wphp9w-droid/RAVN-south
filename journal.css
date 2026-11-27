@@ -40,7 +40,7 @@
   margin-bottom: 24px;
 }
 
-.journal-entry > summary, .journal-past > summary {
+.journal-entry > summary, .journal-day > summary, .journal-past > summary {
   color: #f0e8f4;
   cursor: pointer;
   line-height: 1.5;
@@ -50,7 +50,7 @@
   font-weight: 700;
 }
 
-.journal-entry-state, .journal-past time {
+.journal-entry-state, .journal-day-count {
   margin-left: .6rem;
   color: #dabce5;
   font-size: .875rem;
@@ -111,7 +111,7 @@
   margin-bottom: 0;
 }
 
-.journal-ranks li + li, .journal-past + .journal-past {
+.journal-ranks li + li, .journal-day + .journal-day, .journal-past + .journal-past {
   border-top: 1px solid #49364f;
 }
 
@@ -129,6 +129,52 @@
 .journal-past p {
   white-space: pre-wrap;
   margin-bottom: 0;
+}
+
+.journal-week-label {
+  margin: 0 0 10px;
+  color: #e4caee;
+  text-align: center;
+  font-weight: 700;
+}
+
+.journal-weeks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.journal-weeks button {
+  min-height: 44px;
+  padding: 7px 10px;
+  font-size: .875rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.journal-weeks button:disabled {
+  opacity: .48;
+  cursor: default;
+}
+
+.journal-day {
+  padding: 9px 0;
+}
+
+.journal-day > summary {
+  padding: 4px 0;
+  font-weight: 700;
+}
+
+.journal-day-count {
+  float: right;
+  font-weight: 400;
+}
+
+.journal-day > .journal-past {
+  margin-inline-start: 12px;
 }
 
 .profile-journal-link {
