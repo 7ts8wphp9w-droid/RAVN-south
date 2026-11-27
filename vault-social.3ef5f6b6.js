@@ -180,12 +180,18 @@ const portrait=(id,size='')=>{
 };
 let verifiedMonth=null;
 arenaTrophyData=()=>{
- const awards=[];
- for(const row of ownBadges){
-  const step=trophySteps.find(([,name])=>name===row.step)?.[0];
-  for(let i=0;i<row.badges;i++)awards.push({id:step+i,step});
+ const progress=new Map(ownBadges.map(row=>[row.step,row]));
+ const badges=trophySteps.flatMap(([step,name])=>
+  Array.from({length:progress.get(name)?.badges||0},(_,i)=>({id:step+i,step}))
+ );
+ const collection=calculateTrophies(badges,verifiedMonth);
+ for(const step of collection.steps){
+  const {bronze=0,silver=0}=progress.get(step.name)||{};
+  step.bronze+=bronze;
+  step.silver+=silver;
+  collection.total+=bronze+silver;
  }
- return calculateTrophies(awards,verifiedMonth);
+ return collection;
 };
 function repTotal(count){return count+' '+(count===1?'Rep':'Reps')}
 function challengeStatus(item){
@@ -193,6 +199,11 @@ function challengeStatus(item){
  if(result){
   const winner=result.winner_id===community.identity()?s.name:member(result.winner_id).name;
   return `<p><strong>🥉 ${esc(winner)} won a bronze badge</strong> · ${result.winning_likes} ${result.winning_likes===1?'Rep':'Reps'} at close</p>`;
+ }
+ if(item.arenaMode==='reel'){
+  return '<p>Earn each reward once per Reel Challenge video. Each badge and trophy is randomly picked from the five steps.</p>'+
+   '<ul><li>10 Reps · Badge</li><li>50 Reps · Bronze trophy</li><li>100 Reps · Bronze trophy and badge</li>'+
+   '<li>500 Reps · Silver trophy</li><li>1,000 Reps · Silver trophy and badge</li></ul>';
  }
  const close=item.author==='me'?`<button class="btn-outline" data-vs="close-challenge" data-id="${esc(item.id)}">Close challenge and award badge</button>`:'';
  return '<p>Give a Rep by tapping the dumbbell. The entry with the most Reps wins a bronze badge when the creator closes the challenge. A tie keeps the challenge open.</p>'+close;
@@ -292,11 +303,6 @@ function stackTiles(items,ownLabel){
   return previewTile(first,label+(group.length>1?' · '+group.length:''));
  }).join('');
 }
-function reelCircle(){
- const reels=data.posts.filter(x=>x.type==='reel' && !x.arenaMode);
- if(reels.length)return stackTiles(reels,'Your reel');
- return `<button type="button" class="vs-story" data-vs="add-media" data-kind="reel" aria-label="Add a reel"><span class="vs-story-ring vs-reel-ring" aria-hidden="true">${icon('reels')}</span><strong>Your reels</strong><small>Tap to add</small></button>`;
-}
 window.ravnChallengePreviews=mode=>{
  const items=data.posts.filter(x=>x.type==='reel' && x.arenaMode===mode&&!x.reply);
  if(!items.length)return '';
@@ -310,9 +316,8 @@ function profileFriendStories(){
 function storyStrip(showPersonalMedia=true){
  const own=activeStories(),friends=visibleFriendStories();
  return `<div data-story-rows>
-  <section class="vs-stories" aria-label="${showPersonalMedia?'Posts and reels':'Posts'}">
+  <section class="vs-stories" aria-label="Posts">
    <button type="button" class="vs-story" data-vs="create" aria-label="Create a post"><span class="vs-story-ring">${icon('plus')}</span><strong>Post</strong></button>
-   ${showPersonalMedia?reelCircle():''}
   </section>
   <section class="vs-stories" aria-label="Stories">
    ${showPersonalMedia?`${stackTiles(own,'Your story')}<button type="button" class="vs-story" data-vs="add-media" data-kind="story" aria-label="Add your story"><span class="vs-story-ring">${icon('plus')}</span><strong>${own.length?'Add story':'Your story'}</strong><small>Tap to add</small></button>`:''}
@@ -328,7 +333,7 @@ function openMediaViewer(item, showComments=false, feedItems=null){
  const comments=()=>data.storyComments?.[id]||[];
  const dialog=openDialog(`${media(item)||`<p>${esc(item.text||'')}</p>`}
   <p class="vs-post-text">${mentionText(item.text)}</p>${tagLinks(item)}
-  ${item.arenaMode&&!item.reply?challengeStatus(item):''}
+  ${item.arenaMode&&(!item.reply||item.arenaMode==='reel')?challengeStatus(item):''}
   ${item.arenaMode&&!item.reply&&!results.has(id)&&(item.arenaMode!=='tag'||item.tags.includes(community.identity()))?'<button class="btn" data-vs="respond" data-id="'+esc(id)+'">Enter challenge</button>':''}
   ${item.arenaMode&&!item.reply?data.posts.filter(x=>x.reply===id).map(x=>previewTile(x,'Entry by '+member(x.author).name+' · '+repTotal(likeCounts.get(x.id)||0))).join(''):''}
   <div class="vs-post-tools story-tools">
@@ -547,7 +552,10 @@ function showRepList(id,button){
 function post(x){let p=member(x.author)||member('me'),liked=data.likes.includes(x.id);return `<article class="card vs-post"><div class="vs-post-head"><a href="#/repbook/member/${p.id}" class="vs-person">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>${x.at?new Date(x.at).toLocaleDateString('en-GB'):'Sample member · example post'}</small></span></a>${p.id==='me'?`<button class="btn-soft small" data-vs="delete" data-id="${x.id}">${icon('trash')}Delete</button>`:`<button class="btn-outline small" data-vs="follow" data-id="${p.id}" aria-pressed="${data.following.includes(p.id)}">${icon(data.following.includes(p.id)?'check':'plus')}${data.following.includes(p.id)?'Following':'Follow'}</button>`}</div>${x.activity||x.place?`<p class="rep-context">${[x.activity,x.place&&'At '+x.place].filter(Boolean).map(esc).join(' · ')}</p>`: ''}<p class="vs-post-text" data-colour="${postColours.includes(x.colour)?x.colour:'Default'}">${mentionText(x.text)}</p>${tagLinks(x)}${feedMedia(x)}<div class="vs-post-tools">${repControl(x)}<button type="button" class="btn-soft" data-vs="comment-reel" data-id="${esc(x.id)}">Comment</button></div></article>`}
 function side(){return `<aside class="vs-sidebar"><article class="card"><div class="eyebrow">MAKE IT YOURS</div><h3>Your place in the Repbook</h3><p>Add a picture and a little about yourself so your profile feels like you.</p><a href="#/profile" class="btn-outline">Edit my profile</a></article><article class="card"><div class="eyebrow">EFFORT COUNTS</div><h3>Progress at your pace</h3><p>Training, nutrition and accountability build your progress. Reps and followers do not earn points.</p><a href="#/accountability" class="btn-outline">My accountability</a></article><article class="card"><h3>Meet the community</h3>${people.map(p=>`<a class="vs-person vs-member-link" href="#/repbook/member/${p.id}">${portrait(p.id)}<span><strong>${esc(p.name)}</strong><small>Member</small></span></a>`).join('')}</article></aside>`}
 window.ravnRepbookWrap=wrap;
-function home(){const items=[...data.posts,...samples].filter(x=>tab!=='following'||data.following.includes(x.author));return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
+function visibleFeedPosts(){
+ return [...data.posts,...samples].filter(item=>item.type==='post'&&(tab!=='following'||data.following.includes(item.author)));
+}
+function home(){const items=visibleFeedPosts();return wrap(`<div class="vs-layout repbook-feed"><div class="rep-main"><button class="card vs-composer" data-vs="create">${portrait('me')}<span>Share a win or start a conversation…</span>${icon('photo')}</button><div class="rep-quick" aria-label="Quick actions"><button class="rep-glass" data-vs="add-media" data-kind="reel">${icon('reels')}<span>Reel</span></button><a class="rep-glass" href="#/repbook/challenges">${icon('challenge')}<span>Arena</span></a><button class="rep-glass" data-vs="tag-post">${icon('tag')}<span>@ Mention / tag people</span></button><a class="rep-glass" href="#/repbook/achievements">${icon('trophy')}<span>Awards</span></a></div>${storyStrip()}<div class="vs-filters" aria-label="Feed filter"><button data-vs="filter" data-tab="all" aria-pressed="${tab==='all'}">${icon('feed')} Community</button><button data-vs="filter" data-tab="following" aria-pressed="${tab==='following'}">${icon('people')} Following</button></div>${items.length?items.map(post).join(''):'<div class="card vs-empty"><h3>Your feed starts here</h3><a class="btn-outline" href="#/repbook/members">Find people to follow</a></div>'}</div><aside class="vs-sidebar rep-profile-side">${window.repbookMemberSummary?.()||''}<a class="rep-glass rep-rank" href="#/repbook/journal">${icon('journal')} Journal</a></aside></div>`)}
 function reels(){
  const items=data.posts.filter(x=>x.type==='reel');
  return wrap(`${storyStrip(false)}
@@ -905,7 +913,10 @@ document.addEventListener('click',async e=>{
       })}
    }finally{b.disabled=false}
   }else if(['story','friend-story','view-reel','comment-reel','feed-video'].includes(action)){
-   const item=[...data.posts,...data.stories].find(x=>x.id===id);if(item)openMediaViewer(item,action==='comment-reel',action==='feed-video'?data.posts.filter(x=>x.media&&isVideoMedia(x)&&(tab!=='following'||data.following.includes(x.author))):null);
+   const item=[...data.posts,...data.stories].find(x=>x.id===id);
+   const feedVideos=action==='feed-video'&&document.querySelector('.repbook-feed')?
+    visibleFeedPosts().filter(x=>x.media&&isVideoMedia(x)):null;
+   if(item)openMediaViewer(item,action==='comment-reel',feedVideos);
   }else if(action==='close-challenge'){
    if(b.disabled||!confirm('Close this challenge now and award the leading entry a bronze badge?'))return;
    b.disabled=true;

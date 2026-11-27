@@ -13,7 +13,7 @@ function snapshotGallery(profile){
  if(profile.badgeSteps){
   const steps=trophySteps.map(([id],i)=>{
    const badges=profile.badgeSteps[i];
-   return {id,badges,bronze:Math.floor(badges/10),silver:Math.floor(badges/50),gold:Math.floor(badges/100)};
+   return {id,badges,bronze:profile.bronzeSteps?.[i]??Math.floor(badges/10),silver:profile.silverSteps?.[i]??Math.floor(badges/50),gold:Math.floor(badges/100)};
   });
   return awardGallery(steps,profile.counts.platinum);
  }
@@ -26,10 +26,11 @@ function decodeProfileSnapshot(encoded){
   const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(encoded.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))));
   if(value.v!==1||typeof value.name!=='string'||!value.name.trim()||value.name.length>45||!/^\d{4}-\d{2}-\d{2}$/.test(value.date)||!value.counts)return null;
   if(!profileAwardKeys.every(k=>Number.isSafeInteger(value.counts[k])&&value.counts[k]>=0&&value.counts[k]<=100000000))return null;
-  const badgeSteps=value.badgeSteps;
-  if(badgeSteps!==undefined && (!Array.isArray(badgeSteps)||badgeSteps.length!==5||!badgeSteps.every(n=>Number.isSafeInteger(n)&&n>=0&&n<=100000000)))return null;
+  const {badgeSteps,bronzeSteps,silverSteps}=value;
+  const validSteps=steps=>steps===undefined||(Array.isArray(steps)&&steps.length===trophySteps.length&&steps.every(n=>Number.isSafeInteger(n)&&n>=0&&n<=100000000));
+  if(![badgeSteps,bronzeSteps,silverSteps].every(validSteps))return null;
   const memberLevel=Number.isSafeInteger(value.level)&&value.level>=1?value.level:null;
-  return {v:1,badgeSteps,level:memberLevel,name:value.name,date:value.date,counts:Object.fromEntries(profileAwardKeys.map(k=>[k,value.counts[k]]))};
+  return {v:1,badgeSteps,bronzeSteps,silverSteps,level:memberLevel,name:value.name,date:value.date,counts:Object.fromEntries(profileAwardKeys.map(k=>[k,value.counts[k]]))};
  }catch{return null;}
 }
 function sharedProfile(encoded){
@@ -40,7 +41,15 @@ function sharedProfile(encoded){
 async function shareProfileSnapshot(){
  const shared=path().startsWith('/profile/shared/');
  if(!shared&&s.visibility==='private'){toast('Your profile is private. Change visibility to share.');return;}
- const profile=shared?decodeProfileSnapshot(path().slice('/profile/shared/'.length)):{v:1,name:s.name,date:today(),level:level(),badgeSteps:arenaTrophyData().steps.map(step=>step.badges),counts:profileAwardCounts()};
+ let profile;
+ if(shared)profile=decodeProfileSnapshot(path().slice('/profile/shared/'.length));
+ else{
+  const collection=arenaTrophyData();
+  profile={v:1,name:s.name,date:today(),level:level(),counts:profileAwardCounts(collection),
+   badgeSteps:collection.steps.map(step=>step.badges),
+   bronzeSteps:collection.steps.map(step=>step.bronze),
+   silverSteps:collection.steps.map(step=>step.silver)};
+ }
  if(!profile)return;
  const url=new URL(location.href);url.hash='/profile/shared/'+encodeProfileSnapshot(profile);
  const payload={title:profile.name+' · RAVN South',text:profile.name+'’s RAVN South award collection',url:url.href};

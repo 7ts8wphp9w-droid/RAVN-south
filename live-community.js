@@ -10,17 +10,20 @@ const community = (() => {
     return data;
   }
   function identity(){if(!user)throw Error('Log in to continue.');return user.id}
-  async function rows(table,sort='id'){
+  async function rows(table,...sort){
     const records=[];
+    const orderedColumns=sort.length?sort:['id'];
     for(let offset=0;;offset+=500){
-      const page=await result(client.from(table).select('*').order(sort).range(offset,offset+499));
+      const query=client.from(table).select('*');
+      for(const column of orderedColumns)query.order(column);
+      const page=await result(query.range(offset,offset+499));
       records.push(...page);
       if(page.length<500)return records;
     }
   }
   async function snapshot(){
     const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels]=await Promise.all([
-      rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id'),rows('vault_follows','follower_id'),
+      rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id','user_id'),rows('vault_follows','follower_id'),
       rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id'),rows('vault_member_levels')]);
     return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,daily:loginReward};
   }
