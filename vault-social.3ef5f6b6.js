@@ -480,6 +480,14 @@ async function shareMedia(item,opener){
  document.body.append(dialog);
  dialog.showModal();
 }
+function renderCommentText(text,draft=false){
+ return text.split(feelingEmojiPattern).map(part=>{
+  const choice=feelingsByEmoji.get(part);
+  if(!choice)return esc(part);
+  if(!draft)return feelingArt(choice,true);
+  return `<span class="rep-comment-draft-emoji">${esc(part)}${feelingArt(choice)}</span>`;
+ }).join('');
+}
 function openCommentSheet(item,opener){
  const viewer=opener.closest('.story-player');
  const video=viewer?.querySelector('video');
@@ -494,7 +502,10 @@ function openCommentSheet(item,opener){
   <ul class="rep-comment-list" aria-label="Comments"></ul>
   <form class="rep-comment-form">
    <div class="rep-comment-line">
-    <textarea name="comment" aria-label="Write a comment" placeholder="Write a comment…" required maxlength="500" rows="1" enterkeyhint="send"></textarea>
+    <div class="rep-comment-editor">
+     <textarea name="comment" aria-label="Write a comment" placeholder="Write a comment…" required maxlength="500" rows="1" enterkeyhint="send"></textarea>
+     <div class="rep-comment-draft" aria-hidden="true" hidden></div>
+    </div>
     <button type="button" class="btn-soft rep-comment-emoji-toggle" aria-controls="rep-comment-emojis" aria-expanded="false">Emojis</button>
     <button type="submit" class="btn-soft">Post</button>
    </div>
@@ -506,10 +517,7 @@ function openCommentSheet(item,opener){
  const empty=sheet.querySelector('.rep-comment-empty');
  function appendComment(text){
   const row=document.createElement('li');
-  row.innerHTML=text.split(feelingEmojiPattern).map(part=>{
-   const choice=feelingsByEmoji.get(part);
-   return choice?feelingArt(choice,true):esc(part);
-  }).join('');
+  row.innerHTML=renderCommentText(text);
   list.append(row);
   empty.hidden=true;
  }
@@ -517,6 +525,17 @@ function openCommentSheet(item,opener){
  const form=sheet.querySelector('form'),input=form.elements.comment,send=form.querySelector('[type=submit]');
  const emojiBox=sheet.querySelector('#rep-comment-emojis'),emojiButton=sheet.querySelector('.rep-comment-emoji-toggle');
  const status=sheet.querySelector('[role=status]');
+ const draft=sheet.querySelector('.rep-comment-draft');
+ const syncDraftScroll=()=>{draft.scrollTop=input.scrollTop};
+ function updateDraft(){
+  const parts=input.value.split(feelingEmojiPattern);
+  draft.hidden=parts.length===1;
+  input.classList.toggle('rep-comment-has-art',!draft.hidden);
+  draft.innerHTML=draft.hidden?'':renderCommentText(input.value,true)+'&#8203;';
+  syncDraftScroll();
+ }
+ input.addEventListener('input',updateDraft);
+ input.addEventListener('scroll',syncDraftScroll);
  const setEmojis=open=>{
   emojiBox.hidden=!open;
   emojiButton.setAttribute('aria-expanded',String(open));
@@ -535,6 +554,7 @@ function openCommentSheet(item,opener){
    return;
   }
   input.setRangeText(emoji,start,end,'end');
+  updateDraft();
   status.textContent='';
   setEmojis(false);
   input.focus({preventScroll:true});
@@ -550,10 +570,17 @@ function openCommentSheet(item,opener){
   status.textContent='';
   try{
    await community.comment(item.id,text);
-   (data.storyComments[item.id]??=[]).push({text,author:'me'});
+   const comments=data.storyComments[item.id]??=[];
+   comments.push({text,author:'me'});
+   document.querySelectorAll('[data-comment-hold]').forEach(button=>{
+    if(button.dataset.id!==item.id)return;
+    button.setAttribute('aria-label',commentLabel(comments.length));
+    button.querySelector('[data-comment-count]').textContent=String(comments.length);
+   });
    chime?.();
    appendComment(text);
    input.value='';
+   updateDraft();
    list.scrollTop=list.scrollHeight;
   }catch(error){status.textContent=error.message}
   finally{input.readOnly=false;send.disabled=false}
@@ -707,11 +734,15 @@ function repControl(item){
  const owner=item.author==='me',count=likeCounts.get(item.id)||0;
  return `<button type="button" class="rep-react" data-vs="like" data-id="${esc(item.id)}" aria-pressed="${data.likes.includes(item.id)}" aria-label="Rep this ${esc(item.type)}"${owner?' data-rep-hold aria-haspopup="dialog" title="Hold to see who repped this"':''}>${repDumbbell()}<span data-rep-count data-id="${esc(item.id)}" aria-live="polite">${count}</span></button>`;
 }
+function commentLabel(count){
+ return count?'Comment, '+count+(count===1?' comment':' comments'):'Comment';
+}
 function postActions(item,extraClass=''){
+ const comments=data.storyComments[item.id]?.length||0;
  const id=esc(item.id),type=sharedMediaPages[shareSection(item)].type;
  return `<div class="vs-post-tools rep-post-actions ${extraClass}">
   ${repControl(item)}
-  <button type="button" class="rep-post-action" data-vs="comment" data-id="${id}" aria-label="Comment" data-comment-hold title="Hold to see who commented" aria-keyshortcuts="ArrowDown" aria-haspopup="dialog">${icon('comment')}</button>
+  <button type="button" class="rep-post-action" data-vs="comment" data-id="${id}" aria-label="${commentLabel(comments)}" data-comment-hold title="Hold to see who commented" aria-keyshortcuts="ArrowDown" aria-haspopup="dialog">${icon('comment')}<span data-comment-count aria-hidden="true">${comments||''}</span></button>
   <button type="button" class="rep-post-action" data-vs="share" data-id="${id}" aria-label="Share ${type}" title="Share">${icon('share')}</button>
  </div>`;
 }
