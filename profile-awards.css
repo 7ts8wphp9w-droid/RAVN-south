@@ -9,3 +9,5 @@
 .collection-award:last-child{grid-column:3}
 
 .collection-badge-name{display:block;margin-bottom:4px;color:#e7cfef;font:600 clamp(10px,2.75vw,14px)/1.3 system-ui,sans-serif;text-transform:capitalize;overflow-wrap:anywhere}
+
+@media(max-width:760px){.collection-badge-name{min-height:2.6em;hyphens:auto;align-content:end}}
