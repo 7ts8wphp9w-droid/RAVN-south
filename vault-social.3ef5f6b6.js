@@ -3,14 +3,35 @@
 'use strict';
 const editor=window.repMediaEditor;
 const postChime='./assets/repbook-post-chime.wav';
-const feelingChoices=[
- {emoji:'💪🏼',name:'Strong',position:'0% 0%'},
- {emoji:'😤',name:'Fired up',position:'50% 0%'},
- {emoji:'🥗',name:'Fuelled',position:'100% 0%'},
- {emoji:'💧',name:'Hydrated',position:'0% 100%'},
- {emoji:'😎',name:'Focused',position:'50% 100%'},
- {emoji:'😁',name:'Proud',position:'100% 100%'}
-];
+const feelingCategories={
+ Fitness:[
+  {emoji:'💪🏼',name:'Strong',position:'0% 0%'},
+  {emoji:'😤',name:'Fired up',position:'50% 0%'},
+  {emoji:'😴',name:'Tired',tile:0},
+  {emoji:'😣',name:'Sore',tile:1},
+  {emoji:'⚡',name:'Energised',tile:2},
+  {emoji:'🛌',name:'Rest day',tile:3}
+ ],
+ Nutrition:[
+  {emoji:'🥗',name:'Fuelled',position:'100% 0%'},
+  {emoji:'💧',name:'Hydrated',position:'0% 100%'},
+  {emoji:'🍔',name:'Cheat meal',tile:4},
+  {emoji:'🤤',name:'Hungry',tile:5},
+  {emoji:'😋',name:'Full',tile:6},
+  {emoji:'🍱',name:'Meal prep',tile:7}
+ ],
+ Mentality:[
+  {emoji:'😎',name:'Focused',position:'50% 100%'},
+  {emoji:'😁',name:'Proud',position:'100% 100%'},
+  {emoji:'😢',name:'Sad',tile:8},
+  {emoji:'😠',name:'Angry',tile:9},
+  {emoji:'😰',name:'Stressed',tile:10},
+  {emoji:'😌',name:'Calm',tile:11},
+  {emoji:'🤩',name:'Motivated',tile:12},
+  {emoji:'😄',name:'Happy',tile:13}
+ ]
+};
+const feelingChoices=Object.values(feelingCategories).flat();
 let expiryAlerts=[], expiryTimer;
 let reactors=new Map();
 let results=new Map(),likeCounts=new Map();
@@ -620,7 +641,9 @@ function readFeeling(activity=''){
 }
 function feelingArt(choice, describe=false){
  const accessibility=describe?`role="img" aria-label="${choice.name}"`:'aria-hidden="true"';
- return `<span class="rep-feeling-emoji" ${accessibility} style="background-position:${choice.position}"></span>`;
+ const expanded=choice.tile!==undefined;
+ const position=expanded?`${(choice.tile%4)*100/3}% ${Math.floor(choice.tile/4)*100/3}%`:choice.position;
+ return `<span class="rep-feeling-emoji${expanded?' rep-feeling-emoji-expanded':''}" ${accessibility} style="background-position:${position}"></span>`;
 }
 function postContext(post){
  const {choice,text}=readFeeling(post.activity);
@@ -638,6 +661,7 @@ function composer(kind='post', existing=null, arenaMode=null) {
   const title=arenaMode?(arenaMode==='tag'?'Tag challenge':'Reel challenge'):(existing?'Edit ':'Create ')+kind;
   const prompt=arenaMode?'Set your challenge and describe the rules…':'Share a win or a training update…';
   const {choice,text:feelingText}=readFeeling(existing?.activity);
+  const category=Object.entries(feelingCategories).find(([,feelings])=>feelings.includes(choice))?.[0]||'Fitness';
   const dialog=openDialog(`<form id="vs-create" data-arena-mode="${arenaMode||existing?.arenaMode||''}" data-edit-id="${existing?.id||''}">
     <header class="rep-editor-head"><h2>${title}</h2><button class="rep-glass" type="submit">${existing?'Save':'Post'}</button></header>
     <div class="rep-author">${portrait('me')}<div><strong>${esc(s.name)}</strong>
@@ -658,8 +682,14 @@ function composer(kind='post', existing=null, arenaMode=null) {
     <section class="rep-editor-tools" aria-label="Post options">
       <details data-post-context>
         <summary>${icon('activity')}Feeling</summary>
-        <div class="rep-feeling-picker" role="group" aria-label="Feeling emojis">
-          ${feelingChoices.map(feeling=>`<button type="button" data-feeling="${feeling.emoji}" aria-pressed="${choice===feeling}">${feelingArt(feeling)}<span>${feeling.name}</span></button>`).join('')}
+        <div class="rep-feeling-controls">
+          <div class="rep-feeling-categories" role="group" aria-label="Feeling categories">
+            ${Object.keys(feelingCategories).map(name=>`<button type="button" data-feeling-category="${name}" aria-pressed="${category===name}">${name}</button>`).join('')}
+          </div>
+          ${Object.entries(feelingCategories).map(([name,feelings])=>`
+            <div class="rep-feeling-picker" role="group" aria-label="${name} emojis" data-feeling-group="${name}" ${category===name?'':'hidden'}>
+              ${feelings.map(feeling=>`<button type="button" data-feeling="${feeling.emoji}" aria-pressed="${choice===feeling}">${feelingArt(feeling)}<span>${feeling.name}</span></button>`).join('')}
+            </div>`).join('')}
         </div>
         <input type="hidden" name="feelingEmoji" value="${choice?.emoji||''}">
         <label>How are you feeling?<input name="activity" maxlength="60" placeholder="Focused after training" value="${esc(feelingText)}"></label>
@@ -678,8 +708,19 @@ function composer(kind='post', existing=null, arenaMode=null) {
   const form=dialog.querySelector('form');
   editor.bind(form);
   bindMentions(dialog);
-  const picker=form.querySelector('.rep-feeling-picker'),selection=form.elements.feelingEmoji;
+  const picker=form.querySelector('.rep-feeling-controls'),selection=form.elements.feelingEmoji;
   picker.addEventListener('click',event=>{
+   const tab=event.target.closest('[data-feeling-category]');
+   if(tab){
+    const name=tab.dataset.feelingCategory;
+    for(const button of picker.querySelectorAll('[data-feeling-category]')){
+     button.setAttribute('aria-pressed',String(button===tab));
+    }
+    for(const group of picker.querySelectorAll('[data-feeling-group]')){
+     group.hidden=group.dataset.feelingGroup!==name;
+    }
+    return;
+   }
    const option=event.target.closest('[data-feeling]');
    if(!option)return;
    selection.value=selection.value===option.dataset.feeling?'':option.dataset.feeling;
