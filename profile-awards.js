@@ -4,8 +4,13 @@ function profileAwardCounts(data=arenaTrophyData()){
  return {badges:data.badges,bronze:data.steps.reduce((n,x)=>n+x.bronze,0),silver:data.steps.reduce((n,x)=>n+x.silver,0),gold:data.steps.reduce((n,x)=>n+x.gold,0),platinum:data.platinum?1:0};
 }
 function hiddenHonoursDisplay(){
- const count=0;
- const honours=[1,2,3].map(number=>`<div class="hidden-honour" role="listitem" aria-label="Hidden honour ${number}: ${count} owned"><span class="hidden-honour-shadow" aria-hidden="true"></span><b aria-hidden="true">${count}</b></div>`).join('');
+ const owned=new Set(Array.isArray(s.hiddenHonours)?s.hiddenHonours:[]);
+ const honours=[['gym-rat','Gym Rat'],['the-goat','The Goat'],['the-raven','The Raven']].map(([id,name],index)=>{
+  const earned=owned.has(id);
+  const title=earned?name:`Hidden honour ${index+1}`;
+  const artwork=earned?`<span class="hidden-honour-art"><img src="./assets/hidden-honours/${id}.webp" alt="" loading="lazy"></span>`:'<span class="hidden-honour-shadow" aria-hidden="true"></span>';
+  return `<div class="hidden-honour" role="listitem" aria-label="${title}: ${Number(earned)} owned">${artwork}<b aria-hidden="true">${Number(earned)}</b>${earned?`<small aria-hidden="true">${name}</small>`:''}</div>`;
+ }).join('');
  return `<section class="hidden-honours" aria-label="Hidden Honours"><h3 class="hidden-honours-title">Hidden Honours</h3><div class="hidden-honours-row" role="list">${honours}</div></section>`;
 }
 function awardGallery({steps=arenaTrophyData().steps,platinum=arenaTrophyData().platinum,linkToAchievements=false,showHiddenHonours=true}={}){
