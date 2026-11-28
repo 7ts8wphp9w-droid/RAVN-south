@@ -5,8 +5,18 @@
 .collection-gallery{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(12px,3vw,24px) 4px;width:100%;max-width:660px;margin:16px auto;padding:0;background:transparent;grid-column:1/-1;container-type:inline-size}
 .collection-award{text-align:center;min-width:0;color:#eee7f0}
 .collection-award span{display:block;aspect-ratio:1;width:100%;max-width:106px;margin:auto;background:url('./assets/award-gallery.webp') no-repeat;background-size:500% 500%}
-.collection-award b{display:block;font:700 clamp(14px,3.8vw,22px)/1.2 system-ui,sans-serif;color:inherit}
+.collection-award b,.hidden-honour b{display:block;font:700 clamp(14px,3.8vw,22px)/1.2 system-ui,sans-serif;color:inherit}
 .collection-award:last-child{grid-column:3}
+
+.hidden-honours{grid-column:1/-1;width:100%;max-width:400px;margin:18px auto 22px;text-align:center;color:#eee7f0}
+.hidden-honours .hidden-honours-title{margin:0 0 12px;color:#e4caee;font:700 clamp(15px,4.2vw,21px)/1.25 Cinzel,Georgia,serif;letter-spacing:.055em;text-transform:uppercase}
+.hidden-honours-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hidden-honour-shadow{display:block;position:relative;width:100%;max-width:106px;height:clamp(52px,19vw,91px);margin:0 auto 5px;background:radial-gradient(ellipse at 50% 48%,#322038a6 8%,transparent 72%)}
+.hidden-honour-shadow::before,.hidden-honour-shadow::after{content:'';position:absolute;background:#070409;border-radius:50%;filter:blur(5px);opacity:.86}
+.hidden-honour-shadow::before{inset:24% 19% 18% 19%;transform:rotate(-12deg)}
+.hidden-honour-shadow::after{inset:68% 20% 12%;opacity:.62}
+.hidden-honour:nth-child(2) .hidden-honour-shadow::before{inset:16% 25% 24%;transform:rotate(14deg)}
+.hidden-honour:nth-child(3) .hidden-honour-shadow::before{inset:10% 30% 16%;transform:rotate(-9deg)}
 
 .collection-badge-name{
   display:flex;

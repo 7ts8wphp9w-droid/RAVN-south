@@ -94,7 +94,7 @@ function profileProgress(){
  return `<section class="profile-progress card" aria-labelledby="profile-progress-title">
  <h2 id="profile-progress-title">Your progress</h2>
  ${journalProgressMeter()}
- <a class="profile-awards-link" href="#/repbook/achievements" aria-label="Open badges and trophies">${awardGallery()}</a>
+ ${awardGallery({linkToAchievements:true})}
  <a class="dash-membership" href="#/membership"><b>Training &amp; Nutrition subscription</b><small>Coming soon</small></a></section>`;
 }
 
