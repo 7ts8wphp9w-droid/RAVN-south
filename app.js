@@ -15,12 +15,16 @@ const month=()=>new Date().toISOString().slice(0,7);
 function journalProgressLog({action,activity_day,period,points}){
  return {key:action,date:activity_day,period,points,label:journalSections[action]?.title||action};
 }
+function updateLevelPoints(){
+ const awardPoints=(s.regularAwardPoints||0)+(s.tagWinPoints||0);
+ s.points=s.logs.reduce((total,log)=>total+log.points,awardPoints);
+}
 async function syncJournalProgress(){
  const state=s;
  const actions=await community.journalProgress();
  if(s!==state)return;
  s.logs=actions.map(journalProgressLog);
- s.points=s.logs.reduce((total,log)=>total+log.points,s.tagWinPoints||0);
+ updateLevelPoints();
 }
 const logged=key=>s.logs.some(log=>log.key===key&&log.period===journalDay());
 const pointsPerRank=50;
