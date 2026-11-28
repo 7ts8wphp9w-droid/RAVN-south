@@ -47,7 +47,7 @@ function backFallback(route){
  return '/';
 }
 const btn=(href,label,outline=false)=>`<a class="${outline?'btn-outline':'btn'}" href="#${href}">${label}</a>`;
-const pageHero=(title,sub,desc)=>`<section class="hero-custom"><div class="wrap"><div class="eyebrow"><span style="text-transform:none">ravnsouth</span> · DO IT. PROVE IT.</div><h1>${title}</h1><div class="eyebrow" style="color:#e5c39b">${sub}</div><p class="lead">${desc}</p></div></section>`;
+const pageHero=(title,sub,desc)=>`<section class="hero-custom"><div class="wrap"><div class="eyebrow"><span style="text-transform:none">ravnsouth</span> · DO IT. PROVE IT.</div><h1>${title}</h1><div class="eyebrow" style="color:var(--accent)">${sub}</div><p class="lead">${desc}</p></div></section>`;
 const section=(title,body,after='')=>`<section class="section"><div class="wrap"><div class="sectionhead"><h2>${title}</h2>${after}</div>${body}</div></section>`;
 const card=(html,cls='')=>`<article class="card ${cls}">${html}</article>`;
 const footlinks=[['/about','Our Story'],['/media','Media'],['/coaches','Meet the Coaches'],['/contact','Contact'],['/faq','FAQs'],['/privacy','Privacy'],['/terms','Terms'],['/disclaimer','Disclaimer']];
