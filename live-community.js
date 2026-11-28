@@ -22,10 +22,11 @@ const community = (() => {
     }
   }
   async function snapshot(){
-    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,tagMatches]=await Promise.all([
+    const [profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,tagMatches,hiddenHonours]=await Promise.all([
       rows('vault_profiles'),rows('vault_posts'),rows('vault_likes','post_id','user_id'),rows('vault_follows','follower_id'),
-      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id'),rows('vault_member_levels'),rows('arena_tag_matches','challenge_id')]);
-    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,tagMatches,daily:loginReward};
+      rows('vault_comments','created_at'),rows('arena_step_scores','user_id'),result(client.from('vault_progress').select('*').eq('user_id',identity())),result(client.from('arena_full_month_leaders').select('month,days').eq('user_id',identity()).limit(1)),rows('arena_challenge_results','challenge_id'),rows('vault_expiry_alerts','post_id'),rows('vault_member_levels'),rows('arena_tag_matches','challenge_id'),
+      result(client.rpc('claim_my_hidden_honours')).catch(()=>null)]);
+    return {profiles,posts,likes,follows,comments,scores,own,months,results,expiryAlerts,levels,tagMatches,hiddenHonours,daily:loginReward};
   }
   async function journalProgress(){
     const accountId=identity(), actions=[];

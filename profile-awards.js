@@ -3,11 +3,23 @@ const profileAwardKeys=['badges','bronze','silver','gold','platinum'];
 function profileAwardCounts(data=arenaTrophyData()){
  return {badges:data.badges,bronze:data.steps.reduce((n,x)=>n+x.bronze,0),silver:data.steps.reduce((n,x)=>n+x.silver,0),gold:data.steps.reduce((n,x)=>n+x.gold,0),platinum:data.platinum?1:0};
 }
-function awardGallery(steps=arenaTrophyData().steps, platinum=arenaTrophyData().platinum){
+function hiddenHonoursDisplay(){
+ const owned=new Set(Array.isArray(s.hiddenHonours)?s.hiddenHonours:[]);
+ const honours=[['gym-rat','Gym Rat'],['the-goat','The Goat'],['the-raven','The Raven']].map(([id,name],index)=>{
+  const earned=owned.has(id);
+  const title=earned?name:`Hidden honour ${index+1}`;
+  const artwork=earned?`<span class="hidden-honour-art"><img src="./assets/hidden-honours/${id}.webp" alt="" loading="lazy"></span>`:'<span class="hidden-honour-shadow" aria-hidden="true"></span>';
+  return `<div class="hidden-honour" role="listitem" aria-label="${title}: ${Number(earned)} owned">${artwork}<b aria-hidden="true">${Number(earned)}</b>${earned?`<small aria-hidden="true">${name}</small>`:''}</div>`;
+ }).join('');
+ return `<section class="hidden-honours" aria-label="Hidden Honours"><h3 class="hidden-honours-title">Hidden Honours</h3><div class="hidden-honours-row" role="list">${honours}</div></section>`;
+}
+function awardGallery({steps=arenaTrophyData().steps,platinum=arenaTrophyData().platinum,linkToAchievements=false,showHiddenHonours=true}={}){
  const cell=(row,column,label,count,badgeName='')=>`<div class="collection-award" aria-label="${label}: ${count}">${badgeName?`<small class="collection-badge-name" aria-hidden="true">${esc(badgeName)}</small>`:''}<span aria-hidden="true" style="background-position:${column*25}% ${row*25}%"></span><b aria-hidden="true">${count.toLocaleString('en-GB')}</b></div>`;
  const stepNames=new Map(trophySteps);
  const tiers=['badges','bronze','silver','gold'];
- return '<div class="collection-gallery" role="group" aria-label="Badges and trophies">'+tiers.map((tier,row)=>steps.map((step,column)=>cell(row,column,stepNames.get(step.id)+' '+tier,step[tier],row===0?stepNames.get(step.id):'')).join('')).join('')+cell(4,0,'Platinum',Number(platinum))+'</div>';
+ const gallery='<div class="collection-gallery" role="group" aria-label="Badges and trophies">'+tiers.map((tier,row)=>steps.map((step,column)=>cell(row,column,stepNames.get(step.id)+' '+tier,step[tier],row===0?stepNames.get(step.id):'')).join('')).join('')+cell(4,0,'Platinum',Number(platinum))+'</div>';
+ const collection=linkToAchievements?`<a class="profile-awards-link" href="#/repbook/achievements" aria-label="Open badges and trophies">${gallery}</a>`:gallery;
+ return collection+(showHiddenHonours?hiddenHonoursDisplay():'');
 }
 function snapshotGallery(profile){
  if(profile.badgeSteps){
@@ -15,7 +27,7 @@ function snapshotGallery(profile){
    const badges=profile.badgeSteps[i];
    return {id,badges,bronze:profile.bronzeSteps?.[i]??Math.floor(badges/10),silver:profile.silverSteps?.[i]??Math.floor(badges/50),gold:Math.floor(badges/100)};
   });
-  return awardGallery(steps,profile.counts.platinum);
+  return awardGallery({steps,platinum:profile.counts.platinum,showHiddenHonours:false});
  }
  return '<p>'+profileAwardKeys.map(k=>profile.counts[k]+' '+k).join(' · ')+'</p>';
 }
