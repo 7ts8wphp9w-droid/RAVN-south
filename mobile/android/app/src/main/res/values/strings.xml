@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ravnsouth</string>
+    <string name="title_activity_main">Ravnsouth</string>
+    <string name="package_name">com.ravnsouth.repbook</string>
+    <string name="custom_url_scheme">com.ravnsouth.repbook</string>
+</resources>

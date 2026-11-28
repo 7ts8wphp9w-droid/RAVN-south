@@ -8,9 +8,12 @@
   "scripts": {
     "build": "node build-web.mjs",
     "ios:sync": "npm run build && cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.3",
     "@capacitor/core": "8.6.3",
     "@capacitor/ios": "8.6.3"
   },

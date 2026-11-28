@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ravnsouth_background">#0D0A10</color>
+    <color name="ravnsouth_lilac">#E0C8EB</color>
+
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/ravnsouth_background</item>
+        <item name="colorPrimaryDark">@color/ravnsouth_background</item>
+        <item name="colorAccent">@color/ravnsouth_lilac</item>
+        <item name="android:windowBackground">@color/ravnsouth_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="AppTheme" />
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ravnsouth_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:windowBackground">@color/ravnsouth_background</item>
+    </style>
+</resources>

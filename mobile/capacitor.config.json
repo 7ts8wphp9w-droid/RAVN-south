@@ -3,6 +3,14 @@
   "appName": "Ravnsouth",
   "webDir": "www",
   "ios": {
-    "backgroundColor": "#1B1424"
+    "backgroundColor": "#0D0A10"
+  },
+  "android": {
+    "backgroundColor": "#0D0A10"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
   }
 }
