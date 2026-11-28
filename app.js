@@ -91,22 +91,10 @@ function challenges(){
 function achievements(){return arenaAchievements()}
 
 function profileProgress(){
- const paths={
-  Training:'M3 8v8m4-11v14m10-14v14m4-11v8M7 12h10',
-  Goals:'M5 21V3l13 2-3 4 3 4-13-2',
-  Messages:'M3 4h18v13H9l-6 4z M7 9h10',
-  Arena:'M2 9l4-4h12l4 4-4 4H6L2 9Zm0 0 2 8 4 3h8l4-3 2-8',
-  Coach:'M4 14v-3a8 8 0 0 1 16 0v6l-4 4h-4 M4 11h3v6H4z M17 11h3v6h-3z',
-  Repbook:'M12 6 7 3H2v14h5l5 3 5-3h5V3h-5l-5 3v14'
- };
- const icon=k=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[k]}"/></svg>`;
-
- const tools=[['Repbook','Repbook','/repbook'],['Arena','Arena','/repbook/challenges'],['Goals','Goals','/goals'],['Training','Programme','/fitness-programmes'],['Messages','Messages','/messages'],['Coach','Coach Jill','/coach/jill'],['Coach','Coach Jack','/coach/jack']];
  return `<section class="profile-progress card" aria-labelledby="profile-progress-title">
  <h2 id="profile-progress-title">Your progress</h2>
  ${journalProgressMeter()}
  <a class="profile-awards-link" href="#/repbook/achievements" aria-label="Open badges and trophies">${awardGallery()}</a>
- <h3>Your shortcuts</h3><nav class="dash-tools" aria-label="Profile shortcuts">${tools.map(([glyph,label,url])=>`<a href="#${url}"><i>${icon(glyph)}</i>${label}</a>`).join('')}</nav>
  <a class="dash-membership" href="#/membership"><b>Training &amp; Nutrition subscription</b><small>Coming soon</small></a></section>`;
 }
 
