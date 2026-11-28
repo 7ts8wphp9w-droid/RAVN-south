@@ -2,6 +2,9 @@
   const previousRender=render;
   let account=null, ready=false, issue='', destination='/repbook',generation=0;
   let recovering = recoveryRedirect;
+  const emailRedirect = document.documentElement.hasAttribute('data-repbook-app')
+    ? 'https://ravnsouth.com/'
+    : location.origin + '/';
   render=function(){
     const route=path();
     const forgot=route==='/forgot-password';
@@ -82,7 +85,7 @@
       const status=form.querySelector('[role=status]');
       try{
         if(form.id==='reset-request'){
-          const {error}=await community.client.auth.resetPasswordForEmail(form.elements.email.value.trim(),{redirectTo:location.origin+'/'});
+          const {error}=await community.client.auth.resetPasswordForEmail(form.elements.email.value.trim(),{redirectTo:emailRedirect});
           if(error)throw error;
           status.textContent='If your email is registered, check your inbox for a password reset link.';
         }else{
@@ -104,7 +107,7 @@
       const signup=!!form.elements.displayName;
       const name=form.elements.displayName?.value.trim();
       if(signup&&name.length<2)throw Error('Enter at least two characters for your display name.');
-      const {error,data}=signup?await community.client.auth.signUp({...credentials,options:{data:{display_name:name},emailRedirectTo:location.origin+'/'}}):await community.client.auth.signInWithPassword(credentials);
+      const {error,data}=signup?await community.client.auth.signUp({...credentials,options:{data:{display_name:name},emailRedirectTo:emailRedirect}}):await community.client.auth.signInWithPassword(credentials);
       if(error)throw error;
       if(signup&&!data.session){status.textContent='Check your inbox for the confirmation link, then log in.';form.elements.password.value=''}
     }catch(e){status.textContent=e.message}finally{button.disabled=false}

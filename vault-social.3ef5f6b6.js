@@ -349,7 +349,8 @@ function mediaAvailable(item){
 }
 const navBar=()=>{
  const active=sharedMediaRoute()?.home||path();
- return `<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook','Feed','gym'],['/repbook/reels','Reels','filmReel'],['/repbook/challenges','Arena','challenge'],['/repbook/journal','Journal','journal'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${active===url||url==='/repbook'&&active==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
+ const feedLabel=document.documentElement.hasAttribute('data-repbook-app')?'Repbook':'Feed';
+ return `<nav class="vs-nav rep-dock" aria-label="Repbook">${[['/repbook',feedLabel,'gym'],['/repbook/reels','Reels','filmReel'],['/repbook/challenges','Arena','challenge'],['/repbook/journal','Journal','journal'],['/repbook/members','People','people'],['/profile','Profile','profile']].map(([url,label,glyph])=>`<a href="#${url}" ${active===url||url==='/repbook'&&active==='/repbook/feed'?'aria-current="page"':''}>${icon(glyph)}<span>${label}</span></a>`).join('')}</nav>`;
 };
 function scheduleExpiry(){
  clearTimeout(expiryTimer);

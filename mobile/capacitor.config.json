@@ -1,0 +1,16 @@
+{
+  "appId": "com.ravnsouth.repbook",
+  "appName": "Ravnsouth",
+  "webDir": "www",
+  "ios": {
+    "backgroundColor": "#0D0A10"
+  },
+  "android": {
+    "backgroundColor": "#0D0A10"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
+}

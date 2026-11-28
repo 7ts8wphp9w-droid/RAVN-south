@@ -1,0 +1,23 @@
+{
+  "name": "repbook-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build-web.mjs",
+    "ios:sync": "npm run build && cap sync ios",
+    "ios:open": "cap open ios",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.3",
+    "@capacitor/core": "8.6.3",
+    "@capacitor/ios": "8.6.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.3"
+  }
+}
