@@ -210,7 +210,8 @@ window.loadCommunity=async()=>{
  results=new Map(live.results.map(row=>[row.challenge_id,row]));
  tagMatches=new Map(live.tagMatches.map(row=>[row.challenge_id,row]));
  s.tagWinPoints=25*live.tagMatches.filter(match=>match.winner_id===me).length;
- s.points=s.logs.reduce((total,log)=>total+log.points,s.tagWinPoints);
+ s.regularAwardPoints=live.own.reduce((total,row)=>total+Number(row.regular_award_points??0),0);
+ updateLevelPoints();
  likeCounts=new Map();
 
  reactors=new Map();
