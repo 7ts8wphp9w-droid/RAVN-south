@@ -1,0 +1,8 @@
+{
+  "appId": "com.ravnsouth.repbook",
+  "appName": "Repbook",
+  "webDir": "www",
+  "ios": {
+    "backgroundColor": "#1B1424"
+  }
+}

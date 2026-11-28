@@ -1,0 +1,38 @@
+name: Repbook iOS
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/repbook-ios.yml'
+      - 'mobile/**'
+      - 'index.html'
+      - '*.js'
+      - '*.css'
+      - '*.png'
+      - 'assets/**'
+      - 'vendor/**'
+
+permissions:
+  contents: read
+
+jobs:
+  simulator-build:
+    runs-on: macos-26
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run ios:sync
+      - name: Build for the iPhone simulator
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Debug -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO build
