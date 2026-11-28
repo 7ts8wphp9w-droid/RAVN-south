@@ -195,6 +195,7 @@ window.loadCommunity=async()=>{
  people=live.profiles.filter(p=>p.id!==me).map(p=>({id:p.id,name:p.display_name,bio:p.bio,avatar:p.avatar_path,level:levels.get(p.id)??null}));
  const mine=live.profiles.find(p=>p.id===me);
  s.name=mine?.display_name||'Member';s.visibility=mine?.discoverable===false?'private':'members';
+ if(Array.isArray(live.hiddenHonours))s.hiddenHonours=live.hiddenHonours;
  profilePath=mine?.avatar_path;data.photo=profilePath?'present':'';data.bio=mine?.bio||'';
  const posts=live.posts.map(p=>({id:p.id,author:p.user_id===me?'me':p.user_id,text:p.body,
   type:p.kind,at:Date.parse(p.created_at),media:p.media_path,mime:p.media_type==='video'?'video/mp4':'image/jpeg',
